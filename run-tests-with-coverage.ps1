@@ -16,7 +16,7 @@ dotnet test SmartCampus.Tests/SmartCampus.Tests.csproj `
     --collect:"XPlat Code Coverage" `
     --results-directory ./TestResults `
     --verbosity normal `
-    -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**/*.cs,**/CampusDbContext.cs"
+    -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**/*.cs,**/CampusDbContext.cs,**/Program.cs"
 
 Write-Host "`nTests Completed." -ForegroundColor Green
 
