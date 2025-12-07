@@ -15,7 +15,7 @@ namespace SmartCampus.DataAccess.Repositories
             _context = context;
         }
 
-        public IGenericRepository<T> Repository<T>() where T : BaseEntity
+        public IGenericRepository<T> Repository<T>() where T : class, IAuditEntity
         {
             if (_repositories == null)
             {

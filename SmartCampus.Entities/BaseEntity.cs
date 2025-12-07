@@ -2,7 +2,7 @@ using System;
 
 namespace SmartCampus.Entities
 {
-    public abstract class BaseEntity
+    public abstract class BaseEntity : IAuditEntity
     {
         public int Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

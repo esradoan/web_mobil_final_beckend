@@ -8,7 +8,7 @@ using SmartCampus.Entities;
 
 namespace SmartCampus.DataAccess.Repositories
 {
-    public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
+    public class GenericRepository<T> : IGenericRepository<T> where T : class, IAuditEntity
     {
         protected readonly CampusDbContext _context;
         internal DbSet<T> _dbSet;

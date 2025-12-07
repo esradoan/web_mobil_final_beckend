@@ -6,7 +6,7 @@ namespace SmartCampus.DataAccess.Repositories
 {
     public interface IUnitOfWork : IDisposable
     {
-        IGenericRepository<T> Repository<T>() where T : BaseEntity;
+        IGenericRepository<T> Repository<T>() where T : class, IAuditEntity;
         Task<int> CompleteAsync();
     }
 }

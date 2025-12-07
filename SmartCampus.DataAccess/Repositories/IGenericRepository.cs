@@ -6,7 +6,7 @@ using SmartCampus.Entities;
 
 namespace SmartCampus.DataAccess.Repositories
 {
-    public interface IGenericRepository<T> where T : BaseEntity
+    public interface IGenericRepository<T> where T : class, IAuditEntity
     {
         Task<IEnumerable<T>> GetAllAsync();
         Task<T?> GetByIdAsync(int id);

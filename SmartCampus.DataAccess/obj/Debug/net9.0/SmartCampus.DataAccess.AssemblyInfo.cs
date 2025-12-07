@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SmartCampus.DataAccess")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f7b6b1d0e93c810792f453f63acc9d6021c8a94b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5dc43220e1e36608feab11d5b0722682a504ac64")]
 [assembly: System.Reflection.AssemblyProductAttribute("SmartCampus.DataAccess")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SmartCampus.DataAccess")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

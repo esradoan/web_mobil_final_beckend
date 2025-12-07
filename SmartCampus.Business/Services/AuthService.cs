@@ -4,35 +4,33 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using AutoMapper;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using SmartCampus.Business.DTOs;
-using SmartCampus.DataAccess.Repositories;
 using SmartCampus.Entities;
-using BCrypt.Net;
 
 namespace SmartCampus.Business.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly UserManager<User> _userManager;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
 
-        public AuthService(IUnitOfWork unitOfWork, IMapper mapper, IConfiguration configuration)
+        public AuthService(UserManager<User> userManager, IMapper _mapper, IConfiguration configuration)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _userManager = userManager;
+            this._mapper = _mapper;
             _configuration = configuration;
         }
 
         public async Task<TokenDto> LoginAsync(LoginDto loginDto)
         {
-            // 1. Find User
-            var users = await _unitOfWork.Repository<User>().FindAsync(u => u.Email == loginDto.Email);
-            var user = users.FirstOrDefault();
+            // 1. Find User by Email
+            var user = await _userManager.FindByEmailAsync(loginDto.Email);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
+            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
             {
                 throw new Exception("Invalid credentials");
             }
@@ -44,22 +42,28 @@ namespace SmartCampus.Business.Services
         public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
         {
             // 1. Check if exists
-            var existingUsers = await _unitOfWork.Repository<User>().FindAsync(u => u.Email == registerDto.Email);
-            if (existingUsers.Any())
+            var existingUser = await _userManager.FindByEmailAsync(registerDto.Email);
+            if (existingUser != null)
             {
                 throw new Exception("User with this email already exists");
             }
 
             // 2. Map DTO to Entity
             var user = _mapper.Map<User>(registerDto);
-
-            // 3. Hash Password
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
+            user.UserName = registerDto.Email; // Identity requires UserName
             user.CreatedAt = DateTime.UtcNow;
 
-            // 4. Save
-            await _unitOfWork.Repository<User>().AddAsync(user);
-            await _unitOfWork.CompleteAsync();
+            // 3. Create User (Identity handles Hashing and Saving)
+            var result = await _userManager.CreateAsync(user, registerDto.Password);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                throw new Exception($"Registration failed: {errors}");
+            }
+
+            // 4. Assign Role (Optional, requires RoleManager)
+            // await _userManager.AddToRoleAsync(user, registerDto.Role.ToString());
 
             return _mapper.Map<UserDto>(user);
         }
@@ -69,13 +73,18 @@ namespace SmartCampus.Business.Services
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
 
-            var claims = new[]
+            // Get Roles
+            // var roles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+            
+            // Note: Storing explicit Role property in User temporarily until RoleManager is fully set up
+            // claims.Add(new Claim(ClaimTypes.Role, "Student")); // Placeholder
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -90,7 +99,6 @@ namespace SmartCampus.Business.Services
             var token = tokenHandler.CreateToken(tokenDescriptor);
             var accessToken = tokenHandler.WriteToken(token);
 
-            // Simple Refresh Token (should be saved to DB in real implementation, skipping for brevity in this step)
             var refreshToken = Guid.NewGuid().ToString();
 
             return new TokenDto

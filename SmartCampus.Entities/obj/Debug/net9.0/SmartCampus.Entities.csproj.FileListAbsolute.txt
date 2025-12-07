@@ -1,6 +1,7 @@
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\bin\Debug\net9.0\SmartCampus.Entities.deps.json
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\bin\Debug\net9.0\SmartCampus.Entities.dll
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\bin\Debug\net9.0\SmartCampus.Entities.pdb
+C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\obj\Debug\net9.0\SmartCampus.Entities.csproj.AssemblyReference.cache
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\obj\Debug\net9.0\SmartCampus.Entities.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\obj\Debug\net9.0\SmartCampus.Entities.AssemblyInfoInputs.cache
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.Entities\obj\Debug\net9.0\SmartCampus.Entities.AssemblyInfo.cs

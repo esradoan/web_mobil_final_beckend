@@ -1,15 +1,16 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SmartCampus.Entities;
 
 namespace SmartCampus.DataAccess
 {
-    public class CampusDbContext : DbContext
+    public class CampusDbContext : IdentityDbContext<User, Role, int>
     {
         public CampusDbContext(DbContextOptions<CampusDbContext> options) : base(options)
         {
         }
 
-        public DbSet<User> Users { get; set; }
+        // Users table is handled by Identity (AspNetUsers)
         public DbSet<Student> Students { get; set; }
         public DbSet<Faculty> Faculties { get; set; }
         public DbSet<Department> Departments { get; set; }
@@ -18,7 +19,7 @@ namespace SmartCampus.DataAccess
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder);
+            base.OnModelCreating(modelBuilder); // Critical for Identity
 
             // Configure relationships and constraints here
             
