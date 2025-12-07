@@ -8,6 +8,7 @@ using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System;
 
 namespace SmartCampus.Tests.Services
 {
@@ -45,7 +46,7 @@ namespace SmartCampus.Tests.Services
             var user = new User { Email = "test@example.com", UserName = "test@example.com" };
             var userDto = new UserDto { Email = "test@example.com", FirstName = "Test" };
 
-            _mockUserManager.Setup(x => x.FindByEmailAsync(registerDto.Email)).ReturnsAsync((User)null); // Correct: returns Task<User> which is null
+            _mockUserManager.Setup(x => x.FindByEmailAsync(registerDto.Email)).ReturnsAsync((User)null);
             _mockMapper.Setup(m => m.Map<User>(registerDto)).Returns(user);
             _mockUserManager.Setup(x => x.CreateAsync(user, registerDto.Password)).ReturnsAsync(IdentityResult.Success);
             _mockMapper.Setup(m => m.Map<UserDto>(user)).Returns(userDto);
@@ -56,6 +57,67 @@ namespace SmartCampus.Tests.Services
             // Assert
             Assert.NotNull(result);
             Assert.Equal(registerDto.Email, result.Email);
+        }
+
+        [Fact]
+        public async Task RegisterAsync_ShouldThrowException_WhenUserAlreadyExists()
+        {
+            // Arrange
+            var registerDto = new RegisterDto { Email = "existing@example.com", Password = "Password123!" };
+            var existingUser = new User { Email = "existing@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(registerDto.Email)).ReturnsAsync(existingUser);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.RegisterAsync(registerDto));
+            Assert.Contains("User with this email already exists", exception.Message);
+        }
+
+        [Fact]
+        public async Task LoginAsync_ShouldReturnToken_WhenCredentialsAreValid()
+        {
+            // Arrange
+            var loginDto = new LoginDto { Email = "test@example.com", Password = "Password123!" };
+            var user = new User { Id = 1, Email = "test@example.com", UserName = "test@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.CheckPasswordAsync(user, loginDto.Password)).ReturnsAsync(true);
+
+            // Act
+            var result = await _authService.LoginAsync(loginDto);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.NotNull(result.AccessToken);
+            Assert.NotNull(result.RefreshToken);
+        }
+
+        [Fact]
+        public async Task LoginAsync_ShouldThrowException_WhenUserNotFound()
+        {
+            // Arrange
+            var loginDto = new LoginDto { Email = "unknown@example.com", Password = "Password123!" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email)).ReturnsAsync((User)null);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.LoginAsync(loginDto));
+            Assert.Equal("Invalid credentials", exception.Message);
+        }
+
+        [Fact]
+        public async Task LoginAsync_ShouldThrowException_WhenPasswordIsInvalid()
+        {
+            // Arrange
+            var loginDto = new LoginDto { Email = "test@example.com", Password = "WrongPassword!" };
+            var user = new User { Email = "test@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.CheckPasswordAsync(user, loginDto.Password)).ReturnsAsync(false);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.LoginAsync(loginDto));
+            Assert.Equal("Invalid credentials", exception.Message);
         }
     }
 }

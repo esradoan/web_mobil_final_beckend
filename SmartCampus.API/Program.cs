@@ -9,7 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using SmartCampus.Entities;
 using Microsoft.OpenApi.Models; // Explicitly added
-using Swashbuckle.AspNetCore.SwaggerGen; // Explicitly added
+using Swashbuckle.AspNetCore.SwaggerGen;
+using Microsoft.Extensions.DependencyInjection; // Explicitly added
 
 var builder = WebApplication.CreateBuilder(args);
 
