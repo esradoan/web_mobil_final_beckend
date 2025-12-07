@@ -17,12 +17,14 @@ namespace SmartCampus.Business.Services
         private readonly UserManager<User> _userManager;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
+        private readonly SmartCampus.DataAccess.Repositories.IUnitOfWork _unitOfWork;
 
-        public AuthService(UserManager<User> userManager, IMapper _mapper, IConfiguration configuration)
+        public AuthService(UserManager<User> userManager, IMapper mapper, IConfiguration configuration, SmartCampus.DataAccess.Repositories.IUnitOfWork unitOfWork)
         {
             _userManager = userManager;
-            this._mapper = _mapper;
+            _mapper = mapper;
             _configuration = configuration;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<TokenDto> LoginAsync(LoginDto loginDto)
@@ -36,7 +38,7 @@ namespace SmartCampus.Business.Services
             }
 
             // 2. Generate Tokens
-            return GenerateTokens(user);
+            return await GenerateTokensAsync(user);
         }
 
         public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
@@ -62,19 +64,80 @@ namespace SmartCampus.Business.Services
                 throw new Exception($"Registration failed: {errors}");
             }
 
-            // 4. Assign Role (Optional, requires RoleManager)
-            // await _userManager.AddToRoleAsync(user, registerDto.Role.ToString());
+            // 4. Create Role-Specific Entry
+            if (registerDto.Role == UserRole.Student)
+            {
+                if (string.IsNullOrEmpty(registerDto.StudentNumber) || registerDto.DepartmentId == null)
+                    throw new Exception("Student Number and Department are required for Students.");
+
+                var student = new Student
+                {
+                    UserId = user.Id,
+                    StudentNumber = registerDto.StudentNumber,
+                    DepartmentId = registerDto.DepartmentId.Value
+                };
+                await _unitOfWork.Repository<Student>().AddAsync(student);
+            }
+            else if (registerDto.Role == UserRole.Faculty)
+            {
+                if (registerDto.DepartmentId == null) // Title/EmployeeNumber might be optional or auto-generated? Let's check DTO. Assuming EmployeeNumber required.
+                     // The PDF Requirements say: Faculty tablosu (user_id, employee_number, title, department_id)
+                     // Code below assumes Title is optional or handled elsewhere, but EmployeeNumber should be passed.
+                     if (string.IsNullOrEmpty(registerDto.EmployeeNumber) || registerDto.DepartmentId == null)
+                        throw new Exception("Employee Number and Department are required for Faculty.");
+
+                var faculty = new Faculty
+                {
+                    UserId = user.Id,
+                    EmployeeNumber = registerDto.EmployeeNumber,
+                    DepartmentId = registerDto.DepartmentId.Value,
+                    Title = "Instructor" // Default title or add to DTO
+                };
+                await _unitOfWork.Repository<Faculty>().AddAsync(faculty);
+            }
+
+            await _unitOfWork.CompleteAsync();
 
             return _mapper.Map<UserDto>(user);
         }
 
-        private TokenDto GenerateTokens(User user)
+        public async Task<TokenDto> RefreshTokenAsync(string refreshToken)
+        {
+            var tokenRepo = _unitOfWork.Repository<RefreshToken>();
+            var storedToken = (await tokenRepo.FindAsync(t => t.Token == refreshToken)).FirstOrDefault();
+
+            if (storedToken == null) throw new Exception("Invalid refresh token");
+            if (storedToken.ExpiryDate < DateTime.UtcNow) throw new Exception("Refresh token expired");
+            if (storedToken.IsRevoked) throw new Exception("Refresh token revoked");
+
+            var user = await _userManager.FindByIdAsync(storedToken.UserId.ToString());
+            if (user == null) throw new Exception("User not found");
+
+            // Revoke current token
+            storedToken.IsRevoked = true;
+            tokenRepo.Update(storedToken);
+            await _unitOfWork.CompleteAsync();
+
+            return await GenerateTokensAsync(user);
+        }
+
+        public async Task LogoutAsync(int userId)
+        {
+             var tokenRepo = _unitOfWork.Repository<RefreshToken>();
+             var tokens = await tokenRepo.FindAsync(t => t.UserId == userId && !t.IsRevoked);
+             
+             foreach (var token in tokens)
+             {
+                 token.IsRevoked = true;
+                 tokenRepo.Update(token);
+             }
+             await _unitOfWork.CompleteAsync();
+        }
+
+        private async Task<TokenDto> GenerateTokensAsync(User user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
-
-            // Get Roles
-            // var roles = await _userManager.GetRolesAsync(user);
 
             var claims = new List<Claim>
             {
@@ -83,9 +146,6 @@ namespace SmartCampus.Business.Services
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
             
-            // Note: Storing explicit Role property in User temporarily until RoleManager is fully set up
-            // claims.Add(new Claim(ClaimTypes.Role, "Student")); // Placeholder
-
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
@@ -100,6 +160,19 @@ namespace SmartCampus.Business.Services
             var accessToken = tokenHandler.WriteToken(token);
 
             var refreshToken = Guid.NewGuid().ToString();
+            
+            // Save Refresh Token
+            var refreshTokenEntity = new RefreshToken
+            {
+                Token = refreshToken,
+                UserId = user.Id,
+                ExpiryDate = DateTime.UtcNow.AddDays(7), // per PDF requirement
+                IsRevoked = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            await _unitOfWork.Repository<RefreshToken>().AddAsync(refreshTokenEntity);
+            await _unitOfWork.CompleteAsync();
 
             return new TokenDto
             {

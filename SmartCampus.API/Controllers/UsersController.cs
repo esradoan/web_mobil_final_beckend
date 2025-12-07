@@ -9,7 +9,7 @@ using AutoMapper;
 
 namespace SmartCampus.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v1/users")]
     [ApiController]
     [Authorize]
     public class UsersController : ControllerBase
@@ -23,7 +23,7 @@ namespace SmartCampus.API.Controllers
             _mapper = mapper;
         }
 
-        [HttpGet("profile")]
+        [HttpGet("me")]
         public async Task<IActionResult> GetProfile()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -34,6 +34,32 @@ namespace SmartCampus.API.Controllers
 
             var userDto = _mapper.Map<UserDto>(user);
             return Ok(userDto);
+        }
+
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UserDto userDto)
+        {
+            // Placeholder for Part 1 requirement
+            await Task.CompletedTask;
+            return Ok(new { message = "Profile updated successfully (Placeholder)" });
+        }
+
+        [HttpPost("me/profile-picture")]
+        public async Task<IActionResult> UploadProfilePicture()
+        {
+             // Placeholder for Part 1 requirement
+             // Need Multer/File handling here
+             await Task.CompletedTask;
+             return Ok(new { message = "Profile picture uploaded successfully (Placeholder)", url = "https://example.com/pic.jpg" });
+        }
+
+        [HttpGet("")]
+        [Authorize(Roles = "Admin")] // Example role check
+        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int limit = 10)
+        {
+             // Placeholder for Part 1 requirement
+             await Task.CompletedTask;
+             return Ok(new { message = "User list (Placeholder)", page, limit });
         }
     }
 }

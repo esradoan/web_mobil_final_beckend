@@ -7,5 +7,7 @@ namespace SmartCampus.Business.Services
     {
         Task<TokenDto> LoginAsync(LoginDto loginDto);
         Task<UserDto> RegisterAsync(RegisterDto registerDto);
+        Task<TokenDto> RefreshTokenAsync(string refreshToken);
+        Task LogoutAsync(int userId);
     }
 }

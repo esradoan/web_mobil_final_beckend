@@ -10,5 +10,10 @@ namespace SmartCampus.Business.DTOs
         public string Password { get; set; } = string.Empty;
         public string ConfirmPassword { get; set; } = string.Empty;
         public UserRole Role { get; set; } = UserRole.Student; // Default to Student
+        
+        // Extra fields for specific roles
+        public string? StudentNumber { get; set; }
+        public string? EmployeeNumber { get; set; }
+        public int? DepartmentId { get; set; }
     }
 }
