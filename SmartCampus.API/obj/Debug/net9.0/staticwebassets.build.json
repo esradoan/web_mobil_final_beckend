@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "YE3rhMAKLZf/yifgxR3CCyJrUZQFPtHl3XfwUV9/lho=",
+  "Source": "SmartCampus.API",
+  "BasePath": "_content/SmartCampus.API",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
