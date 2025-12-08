@@ -66,7 +66,7 @@ namespace SmartCampus.Business.Services
 
             await LogActivityAsync(user.Id, "Login", "User logged in via password.");
 
-            return await GenerateTokensAsync(user);
+            return await GenerateTokensAsync(user, loginDto.RememberMe);
         }
 
         public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
@@ -239,7 +239,7 @@ namespace SmartCampus.Business.Services
             }
         }
 
-        private async Task<TokenDto> GenerateTokensAsync(User user)
+        private async Task<TokenDto> GenerateTokensAsync(User user, bool rememberMe = false)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
@@ -266,12 +266,13 @@ namespace SmartCampus.Business.Services
 
             var refreshToken = Guid.NewGuid().ToString();
             
-            // Save Refresh Token
+            // Save Refresh Token - extend expiry if RememberMe is checked
+            var refreshTokenExpiryDays = rememberMe ? 30 : 7;
             var refreshTokenEntity = new RefreshToken
             {
                 Token = refreshToken,
                 UserId = user.Id,
-                ExpiryDate = DateTime.UtcNow.AddDays(7), // per PDF requirement
+                ExpiryDate = DateTime.UtcNow.AddDays(refreshTokenExpiryDays),
                 IsRevoked = false,
                 CreatedAt = DateTime.UtcNow
             };
