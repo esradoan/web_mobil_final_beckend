@@ -236,5 +236,197 @@ namespace SmartCampus.Tests.Services
             // Assert
             _mockUserManager.Verify(x => x.ResetPasswordAsync(user, token, newPassword), Times.Once);
         }
+
+        [Fact]
+        public async Task ResetPasswordAsync_ShouldThrowException_WhenUserNotFound()
+        {
+            var email = "unknown@example.com";
+            _mockUserManager.Setup(x => x.FindByEmailAsync(email)).ReturnsAsync((User)null);
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => 
+                _authService.ResetPasswordAsync(email, "token", "newpass"));
+            Assert.Equal("Invalid request", exception.Message);
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_ShouldThrowException_WhenResetFails()
+        {
+            var email = "test@example.com";
+            var user = new User { Id = 1, Email = email };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.ResetPasswordAsync(user, It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Reset failed" }));
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => 
+                _authService.ResetPasswordAsync(email, "token", "newPass"));
+            Assert.Contains("Reset failed", exception.Message);
+        }
+
+        [Fact]
+        public async Task LoginAsync_ShouldThrowException_WhenAccountIsLockedOut()
+        {
+            var loginDto = new LoginDto { Email = "locked@example.com", Password = "Password123!" };
+            var user = new User { Email = "locked@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(true);
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.LoginAsync(loginDto));
+            Assert.Contains("locked", exception.Message.ToLower());
+        }
+
+        [Fact]
+        public async Task LoginAsync_ShouldIncrementFailedCount_WhenPasswordIsWrong()
+        {
+            var loginDto = new LoginDto { Email = "test@example.com", Password = "WrongPass" };
+            var user = new User { Email = "test@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(false);
+            _mockUserManager.Setup(x => x.CheckPasswordAsync(user, loginDto.Password)).ReturnsAsync(false);
+            _mockUserManager.Setup(x => x.AccessFailedAsync(user)).ReturnsAsync(IdentityResult.Success);
+
+            await Assert.ThrowsAsync<Exception>(() => _authService.LoginAsync(loginDto));
+            _mockUserManager.Verify(x => x.AccessFailedAsync(user), Times.Once);
+        }
+
+        [Fact]
+        public async Task LoginAsync_ShouldResetFailedCount_WhenLoginSucceeds()
+        {
+            var loginDto = new LoginDto { Email = "test@example.com", Password = "CorrectPass!" };
+            var user = new User { Id = 1, Email = "test@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(false);
+            _mockUserManager.Setup(x => x.CheckPasswordAsync(user, loginDto.Password)).ReturnsAsync(true);
+            _mockUserManager.Setup(x => x.ResetAccessFailedCountAsync(user)).ReturnsAsync(IdentityResult.Success);
+
+            await _authService.LoginAsync(loginDto);
+            _mockUserManager.Verify(x => x.ResetAccessFailedCountAsync(user), Times.Once);
+        }
+
+        [Fact]
+        public async Task RefreshTokenAsync_ShouldThrowException_WhenTokenNotFound()
+        {
+            _mockRefreshTokenRepo.Setup(x => x.FindAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<RefreshToken, bool>>>()))
+                .ReturnsAsync(new List<RefreshToken>());
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.RefreshTokenAsync("invalid-token"));
+            Assert.Equal("Invalid refresh token", exception.Message);
+        }
+
+        [Fact]
+        public async Task RefreshTokenAsync_ShouldThrowException_WhenTokenExpired()
+        {
+            var expiredToken = new RefreshToken { Token = "expired", ExpiryDate = DateTime.UtcNow.AddDays(-1) };
+            _mockRefreshTokenRepo.Setup(x => x.FindAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<RefreshToken, bool>>>()))
+                .ReturnsAsync(new List<RefreshToken> { expiredToken });
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.RefreshTokenAsync("expired"));
+            Assert.Equal("Refresh token expired", exception.Message);
+        }
+
+        [Fact]
+        public async Task RefreshTokenAsync_ShouldThrowException_WhenTokenRevoked()
+        {
+            var revokedToken = new RefreshToken { Token = "revoked", ExpiryDate = DateTime.UtcNow.AddDays(1), IsRevoked = true };
+            _mockRefreshTokenRepo.Setup(x => x.FindAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<RefreshToken, bool>>>()))
+                .ReturnsAsync(new List<RefreshToken> { revokedToken });
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.RefreshTokenAsync("revoked"));
+            Assert.Equal("Refresh token revoked", exception.Message);
+        }
+
+        [Fact]
+        public async Task LogoutAsync_ShouldRevokeAllUserTokens()
+        {
+            var userId = 1;
+            var tokens = new List<RefreshToken>
+            {
+                new RefreshToken { Token = "token1", UserId = userId, IsRevoked = false },
+                new RefreshToken { Token = "token2", UserId = userId, IsRevoked = false }
+            };
+
+            _mockRefreshTokenRepo.Setup(x => x.FindAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<RefreshToken, bool>>>()))
+                .ReturnsAsync(tokens);
+
+            await _authService.LogoutAsync(userId);
+
+            Assert.True(tokens.All(t => t.IsRevoked));
+            _mockRefreshTokenRepo.Verify(x => x.Update(It.IsAny<RefreshToken>()), Times.Exactly(2));
+        }
+
+        [Fact]
+        public async Task VerifyEmailAsync_ShouldThrowException_WhenConfirmationFails()
+        {
+            var userId = "1";
+            var user = new User { Id = 1 };
+
+            _mockUserManager.Setup(x => x.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.ConfirmEmailAsync(user, It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Invalid token" }));
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => 
+                _authService.VerifyEmailAsync(userId, "bad-token"));
+            Assert.Contains("verification failed", exception.Message.ToLower());
+        }
+
+        [Fact]
+        public async Task RegisterAsync_ShouldSucceed_WhenFacultyRegisters()
+        {
+            var registerDto = new RegisterDto
+            {
+                Email = "faculty@example.com",
+                Password = "Password123!",
+                FirstName = "Dr.",
+                LastName = "Smith",
+                Role = UserRole.Faculty,
+                EmployeeNumber = "EMP001",
+                DepartmentId = 1
+            };
+            var user = new User { Id = 2, Email = "faculty@example.com" };
+            var userDto = new UserDto { Email = "faculty@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(registerDto.Email)).ReturnsAsync((User)null);
+            _mockMapper.Setup(m => m.Map<User>(registerDto)).Returns(user);
+            _mockUserManager.Setup(x => x.CreateAsync(user, registerDto.Password)).ReturnsAsync(IdentityResult.Success);
+            _mockMapper.Setup(m => m.Map<UserDto>(user)).Returns(userDto);
+
+            var mockFacultyRepo = new Mock<SmartCampus.DataAccess.Repositories.IGenericRepository<Faculty>>();
+            mockFacultyRepo.Setup(r => r.AddAsync(It.IsAny<Faculty>())).Returns(Task.CompletedTask);
+            _mockUnitOfWork.Setup(u => u.Repository<Faculty>()).Returns(mockFacultyRepo.Object);
+
+            var result = await _authService.RegisterAsync(registerDto);
+
+            Assert.NotNull(result);
+            mockFacultyRepo.Verify(r => r.AddAsync(It.IsAny<Faculty>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task RegisterAsync_ShouldThrowException_WhenCreateAsyncFails()
+        {
+            var registerDto = new RegisterDto { Email = "fail@example.com", Password = "Pass!" };
+            var user = new User { Email = "fail@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(registerDto.Email)).ReturnsAsync((User)null);
+            _mockMapper.Setup(m => m.Map<User>(registerDto)).Returns(user);
+            _mockUserManager.Setup(x => x.CreateAsync(user, registerDto.Password))
+                .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Weak password" }));
+
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.RegisterAsync(registerDto));
+            Assert.Contains("Weak password", exception.Message);
+        }
+
+        [Fact]
+        public async Task ForgotPasswordAsync_ShouldNotThrow_WhenUserNotFound()
+        {
+            _mockUserManager.Setup(x => x.FindByEmailAsync("nonexistent@example.com")).ReturnsAsync((User)null);
+
+            // Should return silently without exception
+            await _authService.ForgotPasswordAsync("nonexistent@example.com");
+
+            _mockEmailService.Verify(x => x.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
     }
 }
