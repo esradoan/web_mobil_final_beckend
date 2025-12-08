@@ -1,3 +1,4 @@
+#nullable disable
 using Moq;
 using Xunit;
 using SmartCampus.Business.Services;
