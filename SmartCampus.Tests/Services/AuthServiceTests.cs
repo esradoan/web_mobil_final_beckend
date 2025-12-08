@@ -199,5 +199,41 @@ namespace SmartCampus.Tests.Services
             var exception = await Assert.ThrowsAsync<Exception>(() => _authService.VerifyEmailAsync(userId, token));
             Assert.Equal("User not found", exception.Message);
         }
+        [Fact]
+        public async Task ForgotPasswordAsync_ShouldSendEmail_WhenUserExists()
+        {
+            // Arrange
+            var email = "test@example.com";
+            var user = new User { Id = 1, Email = email };
+            var token = "reset-token";
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.GeneratePasswordResetTokenAsync(user)).ReturnsAsync(token);
+
+            // Act
+            await _authService.ForgotPasswordAsync(email);
+
+            // Assert
+            _mockEmailService.Verify(x => x.SendEmailAsync(email, It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_ShouldSucceed_WhenTokenIsValid()
+        {
+            // Arrange
+            var email = "test@example.com";
+            var user = new User { Id = 1, Email = email };
+            var token = "valid-token";
+            var newPassword = "NewPassword123!";
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(email)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.ResetPasswordAsync(user, token, newPassword)).ReturnsAsync(IdentityResult.Success);
+
+            // Act
+            await _authService.ResetPasswordAsync(email, token, newPassword);
+
+            // Assert
+            _mockUserManager.Verify(x => x.ResetPasswordAsync(user, token, newPassword), Times.Once);
+        }
     }
 }

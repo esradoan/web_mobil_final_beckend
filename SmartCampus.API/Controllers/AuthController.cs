@@ -56,6 +56,23 @@ namespace SmartCampus.API.Controllers
             await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
             return Ok(new { message = "Email verified successfully" });
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            await _authService.ForgotPasswordAsync(dto.Email);
+            return Ok(new { message = "If user exists, reset link sent" });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return BadRequest("Passwords do not match");
+
+            await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
+            return Ok(new { message = "Password reset successfully" });
+        }
     }
 
     public class VerifyEmailDto
@@ -67,5 +84,18 @@ namespace SmartCampus.API.Controllers
     public class RefreshTokenDto 
     {
         public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    public class ForgotPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

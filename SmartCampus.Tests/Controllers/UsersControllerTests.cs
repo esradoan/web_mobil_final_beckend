@@ -1,28 +1,25 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using SmartCampus.API.Controllers;
 using SmartCampus.Business.DTOs;
-using SmartCampus.Entities;
+using SmartCampus.Business.Services;
+using System.Collections.Generic;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace SmartCampus.Tests.Controllers
 {
     public class UsersControllerTests
     {
-        private readonly Mock<UserManager<User>> _mockUserManager;
-        private readonly Mock<IMapper> _mockMapper;
+        private readonly Mock<IUserService> _mockUserService;
         private readonly UsersController _controller;
 
         public UsersControllerTests()
         {
-            var store = new Mock<IUserStore<User>>();
-            _mockUserManager = new Mock<UserManager<User>>(store.Object, null, null, null, null, null, null, null, null);
-            _mockMapper = new Mock<IMapper>();
-            _controller = new UsersController(_mockUserManager.Object, _mockMapper.Object);
+            _mockUserService = new Mock<IUserService>();
+            _controller = new UsersController(_mockUserService.Object);
         }
 
         private void SetupHttpContext(string? userId)
@@ -62,7 +59,7 @@ namespace SmartCampus.Tests.Controllers
         {
             // Arrange
             SetupHttpContext("1");
-            _mockUserManager.Setup(x => x.FindByIdAsync("1")).ReturnsAsync((User?)null);
+            _mockUserService.Setup(x => x.GetProfileAsync(1)).ReturnsAsync((UserDto?)null);
 
             // Act
             var result = await _controller.GetProfile();
@@ -77,11 +74,9 @@ namespace SmartCampus.Tests.Controllers
         {
             // Arrange
             SetupHttpContext("1");
-            var user = new User { Id = 1, Email = "test@example.com" };
             var userDto = new UserDto { Id = 1, Email = "test@example.com" };
 
-            _mockUserManager.Setup(x => x.FindByIdAsync("1")).ReturnsAsync(user);
-            _mockMapper.Setup(x => x.Map<UserDto>(user)).Returns(userDto);
+            _mockUserService.Setup(x => x.GetProfileAsync(1)).ReturnsAsync(userDto);
 
             // Act
             var result = await _controller.GetProfile();
@@ -90,6 +85,23 @@ namespace SmartCampus.Tests.Controllers
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnDto = Assert.IsType<UserDto>(okResult.Value);
             Assert.Equal(userDto.Email, returnDto.Email);
+        }
+
+        [Fact]
+        public async Task UpdateProfile_Should_Call_Service_When_Valid()
+        {
+            // Arrange
+            SetupHttpContext("1");
+            var updateDto = new UpdateUserDto { FirstName = "NewName" };
+            
+            _mockUserService.Setup(x => x.UpdateProfileAsync(1, updateDto)).Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _controller.UpdateProfile(updateDto);
+
+            // Assert
+            Assert.IsType<OkObjectResult>(result);
+            _mockUserService.Verify(x => x.UpdateProfileAsync(1, updateDto), Times.Once);
         }
     }
 }

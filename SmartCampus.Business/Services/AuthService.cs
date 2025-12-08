@@ -130,6 +130,33 @@ namespace SmartCampus.Business.Services
             }
         }
 
+        public async Task ForgotPasswordAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                // To prevent email enumeration, we might want to return silently
+                // But for now/dev, let's throw or just return
+                return; 
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            // In real app, make link
+            await _emailService.SendEmailAsync(user.Email!, "Reset your password", $"Your reset token is: {token}. Use POST /api/v1/auth/reset-password with this token.");
+        }
+
+        public async Task ResetPasswordAsync(string email, string token, string newPassword)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null) throw new Exception("Invalid request");
+
+            var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+            if (!result.Succeeded)
+            {
+                throw new Exception("Password reset failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+            }
+        }
+
         public async Task<TokenDto> RefreshTokenAsync(string refreshToken)
         {
             var tokenRepo = _unitOfWork.Repository<RefreshToken>();

@@ -6,6 +6,7 @@ using SmartCampus.Entities;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using AutoMapper;
+using SmartCampus.Business.Services;
 
 namespace SmartCampus.API.Controllers
 {
@@ -14,52 +15,72 @@ namespace SmartCampus.API.Controllers
     [Authorize]
     public class UsersController : ControllerBase
     {
-        private readonly UserManager<User> _userManager;
-        private readonly IMapper _mapper;
+        private readonly IUserService _userService;
 
-        public UsersController(UserManager<User> userManager, IMapper mapper)
+        public UsersController(IUserService userService)
         {
-            _userManager = userManager;
-            _mapper = mapper;
+            _userService = userService;
         }
 
         [HttpGet("me")]
         public async Task<IActionResult> GetProfile()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null) return Unauthorized();
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userIdStr == null) return Unauthorized();
 
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) return NotFound("User not found.");
-
-            var userDto = _mapper.Map<UserDto>(user);
+            var userDto = await _userService.GetProfileAsync(int.Parse(userIdStr));
+            if (userDto == null) return NotFound("User not found.");
             return Ok(userDto);
         }
 
         [HttpPut("me")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UserDto userDto)
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto updateDto)
         {
-            // Placeholder for Part 1 requirement
-            await Task.CompletedTask;
-            return Ok(new { message = "Profile updated successfully (Placeholder)" });
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+           if (userIdStr == null) return Unauthorized();
+
+            await _userService.UpdateProfileAsync(int.Parse(userIdStr), updateDto);
+            return Ok(new { message = "Profile updated successfully" });
         }
 
         [HttpPost("me/profile-picture")]
-        public async Task<IActionResult> UploadProfilePicture()
+        public async Task<IActionResult> UploadProfilePicture(IFormFile file)
         {
-             // Placeholder for Part 1 requirement
-             // Need Multer/File handling here
-             await Task.CompletedTask;
-             return Ok(new { message = "Profile picture uploaded successfully (Placeholder)", url = "https://example.com/pic.jpg" });
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userIdStr == null) return Unauthorized();
+
+            // Validate file type etc. (Basic check)
+            if (!file.ContentType.StartsWith("image/"))
+                 return BadRequest("Only image files are allowed.");
+
+            // Save file
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var fileUrl = $"/uploads/{uniqueFileName}"; // Relative URL
+            
+            await _userService.UpdateProfilePictureAsync(int.Parse(userIdStr), fileUrl);
+
+            return Ok(new { message = "Profile picture uploaded successfully", url = fileUrl });
         }
 
         [HttpGet("")]
-        [Authorize(Roles = "Admin")] // Example role check
-        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int limit = 10)
+        [Authorize(Roles = "Admin")] 
+        public async Task<IActionResult> GetUsers()
         {
-             // Placeholder for Part 1 requirement
-             await Task.CompletedTask;
-             return Ok(new { message = "User list (Placeholder)", page, limit });
+             var users = await _userService.GetAllUsersAsync();
+             return Ok(users);
         }
     }
 }
