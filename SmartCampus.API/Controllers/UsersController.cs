@@ -77,9 +77,9 @@ namespace SmartCampus.API.Controllers
 
         [HttpGet("")]
         [Authorize(Roles = "Admin")] 
-        public async Task<IActionResult> GetUsers()
+        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-             var users = await _userService.GetAllUsersAsync();
+             var users = await _userService.GetAllUsersAsync(page, pageSize);
              return Ok(users);
         }
     }

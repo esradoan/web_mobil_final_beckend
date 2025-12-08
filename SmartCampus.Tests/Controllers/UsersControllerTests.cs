@@ -103,5 +103,20 @@ namespace SmartCampus.Tests.Controllers
             Assert.IsType<OkObjectResult>(result);
             _mockUserService.Verify(x => x.UpdateProfileAsync(1, updateDto), Times.Once);
         }
+        [Fact]
+        public async Task GetUsers_ShouldCallServiceWithPagination()
+        {
+            // Arrange
+            SetupHttpContext("1");
+            var users = new List<UserDto>();
+            _mockUserService.Setup(x => x.GetAllUsersAsync(1, 10)).ReturnsAsync(users);
+
+            // Act
+            var result = await _controller.GetUsers(1, 10);
+
+            // Assert
+            Assert.IsType<OkObjectResult>(result);
+            _mockUserService.Verify(x => x.GetAllUsersAsync(1, 10), Times.Once);
+        }
     }
 }

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mysql_db:
+    image: mysql:8.0
+    container_name: smartcampus_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: campus_db
+      MYSQL_USER: campus_user
+      MYSQL_PASSWORD: campus_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - smartcampus_network
+
+  backend_api:
+    build:
+      context: .
+      dockerfile: SmartCampus.API/Dockerfile
+    container_name: smartcampus_api
+    ports:
+      - "5000:8080" # ASP.NET Core 8+ defaults to 8080 inside container
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=mysql_db;Database=campus_db;User=campus_user;Password=campus_password;"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      JwtSettings__Secret: "super_secret_key_en_az_32_karakter_olmali"
+      JwtSettings__Issuer: "MobileBackend"
+      JwtSettings__Audience: "MobileApp"
+      JwtSettings__AccessTokenExpirationMinutes: "15"
+    depends_on:
+      - mysql_db
+    networks:
+      - smartcampus_network
+
+volumes:
+  mysql_data:
+
+networks:
+  smartcampus_network:

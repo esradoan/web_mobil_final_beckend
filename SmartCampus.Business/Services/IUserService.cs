@@ -10,6 +10,6 @@ namespace SmartCampus.Business.Services
         Task UpdateProfileAsync(int userId, UpdateUserDto updateDto);
         Task UpdateProfilePictureAsync(int userId, string pictureUrl);
         // Admin method
-        Task<IEnumerable<UserDto>> GetAllUsersAsync();
+        Task<IEnumerable<UserDto>> GetAllUsersAsync(int page, int pageSize);
     }
 }

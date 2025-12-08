@@ -61,9 +61,12 @@ namespace SmartCampus.Business.Services
             }
         }
 
-        public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
+        public async Task<IEnumerable<UserDto>> GetAllUsersAsync(int page, int pageSize)
         {
-            var users = await _userManager.Users.ToListAsync();
+            var users = await _userManager.Users
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
             return _mapper.Map<IEnumerable<UserDto>>(users);
         }
     }
