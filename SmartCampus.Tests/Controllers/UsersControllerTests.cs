@@ -1,3 +1,4 @@
+#nullable disable
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -5,7 +6,9 @@ using SmartCampus.API.Controllers;
 using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -22,7 +25,7 @@ namespace SmartCampus.Tests.Controllers
             _controller = new UsersController(_mockUserService.Object);
         }
 
-        private void SetupHttpContext(string? userId)
+        private void SetupHttpContext(string userId)
         {
             var user = new ClaimsPrincipal();
             if (userId != null)
@@ -41,82 +44,162 @@ namespace SmartCampus.Tests.Controllers
             };
         }
 
+        // GetProfile Tests
         [Fact]
-        public async Task GetProfile_Should_Return_Unauthorized_When_User_Not_Found_In_Claims()
+        public async Task GetProfile_ReturnsUnauthorized_WhenUserNotInClaims()
         {
-            // Arrange
-            SetupHttpContext(null); // No User ID in claims
+            SetupHttpContext(null);
 
-            // Act
             var result = await _controller.GetProfile();
 
-            // Assert
             Assert.IsType<UnauthorizedResult>(result);
         }
 
         [Fact]
-        public async Task GetProfile_Should_Return_NotFound_When_User_Does_Not_Exist()
+        public async Task GetProfile_ReturnsNotFound_WhenUserDoesNotExist()
         {
-            // Arrange
             SetupHttpContext("1");
-            _mockUserService.Setup(x => x.GetProfileAsync(1)).ReturnsAsync((UserDto?)null);
+            _mockUserService.Setup(x => x.GetProfileAsync(1)).ReturnsAsync((UserDto)null);
 
-            // Act
             var result = await _controller.GetProfile();
 
-            // Assert
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
             Assert.Equal("User not found.", notFoundResult.Value);
         }
 
         [Fact]
-        public async Task GetProfile_Should_Return_Ok_With_UserDto_When_User_Found()
+        public async Task GetProfile_ReturnsOk_WhenUserFound()
         {
-            // Arrange
             SetupHttpContext("1");
             var userDto = new UserDto { Id = 1, Email = "test@example.com" };
-
             _mockUserService.Setup(x => x.GetProfileAsync(1)).ReturnsAsync(userDto);
 
-            // Act
             var result = await _controller.GetProfile();
 
-            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnDto = Assert.IsType<UserDto>(okResult.Value);
             Assert.Equal(userDto.Email, returnDto.Email);
         }
 
+        // UpdateProfile Tests
         [Fact]
-        public async Task UpdateProfile_Should_Call_Service_When_Valid()
+        public async Task UpdateProfile_ReturnsUnauthorized_WhenUserNotInClaims()
         {
-            // Arrange
+            SetupHttpContext(null);
+
+            var result = await _controller.UpdateProfile(new UpdateUserDto());
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task UpdateProfile_ReturnsOk_WhenSuccessful()
+        {
             SetupHttpContext("1");
             var updateDto = new UpdateUserDto { FirstName = "NewName" };
-            
             _mockUserService.Setup(x => x.UpdateProfileAsync(1, updateDto)).Returns(Task.CompletedTask);
 
-            // Act
             var result = await _controller.UpdateProfile(updateDto);
 
-            // Assert
             Assert.IsType<OkObjectResult>(result);
             _mockUserService.Verify(x => x.UpdateProfileAsync(1, updateDto), Times.Once);
         }
+
+        // UploadProfilePicture Tests
         [Fact]
-        public async Task GetUsers_ShouldCallServiceWithPagination()
+        public async Task UploadProfilePicture_ReturnsBadRequest_WhenNoFile()
         {
-            // Arrange
+            SetupHttpContext("1");
+
+            var result = await _controller.UploadProfilePicture(null);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("No file uploaded.", badRequest.Value);
+        }
+
+        [Fact]
+        public async Task UploadProfilePicture_ReturnsBadRequest_WhenEmptyFile()
+        {
+            SetupHttpContext("1");
+            var mockFile = new Mock<IFormFile>();
+            mockFile.Setup(f => f.Length).Returns(0);
+
+            var result = await _controller.UploadProfilePicture(mockFile.Object);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("No file uploaded.", badRequest.Value);
+        }
+
+        [Fact]
+        public async Task UploadProfilePicture_ReturnsUnauthorized_WhenUserNotInClaims()
+        {
+            SetupHttpContext(null);
+            var mockFile = new Mock<IFormFile>();
+            mockFile.Setup(f => f.Length).Returns(1000);
+            mockFile.Setup(f => f.ContentType).Returns("image/jpeg");
+
+            var result = await _controller.UploadProfilePicture(mockFile.Object);
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task UploadProfilePicture_ReturnsBadRequest_WhenNotImage()
+        {
+            SetupHttpContext("1");
+            var mockFile = new Mock<IFormFile>();
+            mockFile.Setup(f => f.Length).Returns(1000);
+            mockFile.Setup(f => f.ContentType).Returns("application/pdf");
+
+            var result = await _controller.UploadProfilePicture(mockFile.Object);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Only image files are allowed.", badRequest.Value);
+        }
+
+        // GetUsers Tests
+        [Fact]
+        public async Task GetUsers_ReturnsOk_WithPagination()
+        {
             SetupHttpContext("1");
             var users = new List<UserDto>();
             _mockUserService.Setup(x => x.GetAllUsersAsync(1, 10)).ReturnsAsync(users);
 
-            // Act
             var result = await _controller.GetUsers(1, 10);
 
-            // Assert
             Assert.IsType<OkObjectResult>(result);
             _mockUserService.Verify(x => x.GetAllUsersAsync(1, 10), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetUsers_UsesDefaultPagination()
+        {
+            SetupHttpContext("1");
+            var users = new List<UserDto>();
+            _mockUserService.Setup(x => x.GetAllUsersAsync(1, 10)).ReturnsAsync(users);
+
+            var result = await _controller.GetUsers();
+
+            Assert.IsType<OkObjectResult>(result);
+            _mockUserService.Verify(x => x.GetAllUsersAsync(1, 10), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetUsers_ReturnsCorrectUserList()
+        {
+            SetupHttpContext("1");
+            var users = new List<UserDto>
+            {
+                new UserDto { Id = 1, Email = "user1@example.com" },
+                new UserDto { Id = 2, Email = "user2@example.com" }
+            };
+            _mockUserService.Setup(x => x.GetAllUsersAsync(1, 10)).ReturnsAsync(users);
+
+            var result = await _controller.GetUsers(1, 10);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedUsers = Assert.IsAssignableFrom<IEnumerable<UserDto>>(okResult.Value);
+            Assert.Equal(2, ((List<UserDto>)returnedUsers).Count);
         }
     }
 }
