@@ -144,3 +144,4 @@ C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.API\obj\Debu
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.API\obj\Debug\net9.0\SmartCampus.API.genruntimeconfig.cache
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.API\obj\Debug\net9.0\ref\SmartCampus.API.dll
 C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.API\bin\Debug\net9.0\SmartCampus.API.staticwebassets.runtime.json
+C:\Users\desra\OneDrive\Desktop\web_mobil_final_beckend\SmartCampus.API\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
