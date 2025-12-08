@@ -51,12 +51,17 @@ namespace SmartCampus.API.Controllers
         }
 
         [HttpPost("verify-email")]
-        public async Task<IActionResult> VerifyEmail([FromBody] string token)
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyDto)
         {
-            // Placeholder for Part 1 requirement
-            await Task.CompletedTask;
-            return Ok(new { message = "Email verified successfully (Placeholder)" });
+            await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
+            return Ok(new { message = "Email verified successfully" });
         }
+    }
+
+    public class VerifyEmailDto
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
     }
 
     public class RefreshTokenDto 

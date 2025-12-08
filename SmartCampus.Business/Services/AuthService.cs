@@ -18,13 +18,15 @@ namespace SmartCampus.Business.Services
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly SmartCampus.DataAccess.Repositories.IUnitOfWork _unitOfWork;
+        private readonly IEmailService _emailService;
 
-        public AuthService(UserManager<User> userManager, IMapper mapper, IConfiguration configuration, SmartCampus.DataAccess.Repositories.IUnitOfWork unitOfWork)
+        public AuthService(UserManager<User> userManager, IMapper mapper, IConfiguration configuration, SmartCampus.DataAccess.Repositories.IUnitOfWork unitOfWork, IEmailService emailService)
         {
             _userManager = userManager;
             _mapper = mapper;
             _configuration = configuration;
             _unitOfWork = unitOfWork;
+            _emailService = emailService;
         }
 
         public async Task<TokenDto> LoginAsync(LoginDto loginDto)
@@ -35,6 +37,16 @@ namespace SmartCampus.Business.Services
             if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
             {
                 throw new Exception("Invalid credentials");
+            }
+            
+            if (!_userManager.Options.SignIn.RequireConfirmedEmail || await _userManager.IsEmailConfirmedAsync(user))
+            {
+                // Proceed
+            }
+            else 
+            {
+                 // Optional: throw exception if email not confirmed
+                 // throw new Exception("Email not confirmed");
             }
 
             // 2. Generate Tokens
@@ -80,9 +92,7 @@ namespace SmartCampus.Business.Services
             }
             else if (registerDto.Role == UserRole.Faculty)
             {
-                if (registerDto.DepartmentId == null) // Title/EmployeeNumber might be optional or auto-generated? Let's check DTO. Assuming EmployeeNumber required.
-                     // The PDF Requirements say: Faculty tablosu (user_id, employee_number, title, department_id)
-                     // Code below assumes Title is optional or handled elsewhere, but EmployeeNumber should be passed.
+                if (registerDto.DepartmentId == null) 
                      if (string.IsNullOrEmpty(registerDto.EmployeeNumber) || registerDto.DepartmentId == null)
                         throw new Exception("Employee Number and Department are required for Faculty.");
 
@@ -91,14 +101,33 @@ namespace SmartCampus.Business.Services
                     UserId = user.Id,
                     EmployeeNumber = registerDto.EmployeeNumber,
                     DepartmentId = registerDto.DepartmentId.Value,
-                    Title = "Instructor" // Default title or add to DTO
+                    Title = "Instructor" 
                 };
                 await _unitOfWork.Repository<Faculty>().AddAsync(faculty);
             }
 
             await _unitOfWork.CompleteAsync();
 
+            // 5. Generate Email Verification Token
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            // In real app, encode token for URL
+            // var encodedToken = System.Web.HttpUtility.UrlEncode(token); 
+            // Send Email
+            await _emailService.SendEmailAsync(user.Email!, "Verify your email", $"Your verification token is: {token}. Use this to verify your email via POST /api/v1/auth/verify-email");
+
             return _mapper.Map<UserDto>(user);
+        }
+
+        public async Task VerifyEmailAsync(string userId, string token)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new Exception("User not found");
+
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+            if (!result.Succeeded)
+            {
+                throw new Exception("Email verification failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+            }
         }
 
         public async Task<TokenDto> RefreshTokenAsync(string refreshToken)

@@ -69,6 +69,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Register Business Services
 builder.Services.AddAutoMapper(typeof(SmartCampus.Business.Mappings.MappingProfile));
 builder.Services.AddValidatorsFromAssemblyContaining<SmartCampus.Business.Validators.RegisterDtoValidator>();
+builder.Services.AddScoped<IEmailService, MockEmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Configure JWT Authentication

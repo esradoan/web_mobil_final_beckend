@@ -19,6 +19,7 @@ namespace SmartCampus.Tests.Services
         private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<SmartCampus.DataAccess.Repositories.IUnitOfWork> _mockUnitOfWork;
         private readonly Mock<SmartCampus.DataAccess.Repositories.IGenericRepository<RefreshToken>> _mockRefreshTokenRepo;
+        private readonly Mock<IEmailService> _mockEmailService;
         private readonly AuthService _authService;
 
         public AuthServiceTests()
@@ -29,6 +30,7 @@ namespace SmartCampus.Tests.Services
             _mockConfiguration = new Mock<IConfiguration>();
             _mockUnitOfWork = new Mock<SmartCampus.DataAccess.Repositories.IUnitOfWork>();
             _mockRefreshTokenRepo = new Mock<SmartCampus.DataAccess.Repositories.IGenericRepository<RefreshToken>>();
+            _mockEmailService = new Mock<IEmailService>();
 
             _mockUnitOfWork.Setup(u => u.Repository<RefreshToken>()).Returns(_mockRefreshTokenRepo.Object);
             _mockRefreshTokenRepo.Setup(x => x.AddAsync(It.IsAny<RefreshToken>())).Returns(Task.CompletedTask);
@@ -43,7 +45,7 @@ namespace SmartCampus.Tests.Services
 
             _mockConfiguration.Setup(c => c.GetSection("JwtSettings")).Returns(mockJwtSection.Object);
 
-            _authService = new AuthService(_mockUserManager.Object, _mockMapper.Object, _mockConfiguration.Object, _mockUnitOfWork.Object);
+            _authService = new AuthService(_mockUserManager.Object, _mockMapper.Object, _mockConfiguration.Object, _mockUnitOfWork.Object, _mockEmailService.Object);
         }
 
         [Fact]
@@ -164,6 +166,38 @@ namespace SmartCampus.Tests.Services
             // Act & Assert
             var exception = await Assert.ThrowsAsync<Exception>(() => _authService.LoginAsync(loginDto));
             Assert.Equal("Invalid credentials", exception.Message);
+        }
+
+        [Fact]
+        public async Task VerifyEmailAsync_ShouldSucceed_WhenTokenIsValid()
+        {
+            // Arrange
+            var userId = "1";
+            var token = "valid-token";
+            var user = new User { Id = 1, Email = "test@example.com" };
+
+            _mockUserManager.Setup(x => x.FindByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.ConfirmEmailAsync(user, token)).ReturnsAsync(IdentityResult.Success);
+
+            // Act
+            await _authService.VerifyEmailAsync(userId, token);
+
+            // Assert
+            _mockUserManager.Verify(x => x.ConfirmEmailAsync(user, token), Times.Once);
+        }
+
+        [Fact]
+        public async Task VerifyEmailAsync_ShouldThrowException_WhenUserNotFound()
+        {
+            // Arrange
+            var userId = "1";
+            var token = "any-token";
+            
+            _mockUserManager.Setup(x => x.FindByIdAsync(userId)).ReturnsAsync((User)null);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<Exception>(() => _authService.VerifyEmailAsync(userId, token));
+            Assert.Equal("User not found", exception.Message);
         }
     }
 }
