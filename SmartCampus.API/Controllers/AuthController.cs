@@ -73,6 +73,13 @@ namespace SmartCampus.API.Controllers
             await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
             return Ok(new { message = "Password reset successfully" });
         }
+
+        [HttpPost("password-strength")]
+        public IActionResult CheckPasswordStrength([FromBody] string password)
+        {
+            var result = SmartCampus.Business.Helpers.PasswordStrength.Evaluate(password);
+            return Ok(new { Score = result.Score, Feedback = result.Feedback });
+        }
     }
 
     public class VerifyEmailDto

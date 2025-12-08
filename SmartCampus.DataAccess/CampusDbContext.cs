@@ -10,19 +10,17 @@ namespace SmartCampus.DataAccess
         {
         }
 
-        // Users table is handled by Identity (AspNetUsers)
         public DbSet<Student> Students { get; set; }
         public DbSet<Faculty> Faculties { get; set; }
         public DbSet<Department> Departments { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<UserActivityLog> UserActivityLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Critical for Identity
 
-            // Configure relationships and constraints here
-            
             // User - Student (1:1)
             modelBuilder.Entity<Student>()
                 .HasOne(s => s.User)

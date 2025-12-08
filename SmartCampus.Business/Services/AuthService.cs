@@ -29,27 +29,43 @@ namespace SmartCampus.Business.Services
             _emailService = emailService;
         }
 
+
+
         public async Task<TokenDto> LoginAsync(LoginDto loginDto)
         {
-            // 1. Find User by Email
             var user = await _userManager.FindByEmailAsync(loginDto.Email);
+            if (user == null) throw new Exception("Invalid credentials");
 
-            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            // Check if locked out
+            if (await _userManager.IsLockedOutAsync(user))
             {
+                 throw new Exception("Account is locked due to multiple failed login attempts. Try again later.");
+            }
+
+            if (!await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            {
+                // Increment failed count
+                await _userManager.AccessFailedAsync(user);
+                
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                     throw new Exception("Account is locked due to multiple failed login attempts. Try again later.");
+                }
+
                 throw new Exception("Invalid credentials");
             }
-            
-            if (!_userManager.Options.SignIn.RequireConfirmedEmail || await _userManager.IsEmailConfirmedAsync(user))
+
+            // Reset failed count on success
+            await _userManager.ResetAccessFailedCountAsync(user);
+
+            // Check Email Confirmation
+            if (_userManager.Options.SignIn.RequireConfirmedEmail && !await _userManager.IsEmailConfirmedAsync(user))
             {
-                // Proceed
-            }
-            else 
-            {
-                 // Optional: throw exception if email not confirmed
-                 // throw new Exception("Email not confirmed");
+                 // thrown if enforced
             }
 
-            // 2. Generate Tokens
+            await LogActivityAsync(user.Id, "Login", "User logged in via password.");
+
             return await GenerateTokensAsync(user);
         }
 
@@ -110,10 +126,14 @@ namespace SmartCampus.Business.Services
 
             // 5. Generate Email Verification Token
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            // In real app, encode token for URL
-            // var encodedToken = System.Web.HttpUtility.UrlEncode(token); 
-            // Send Email
-            await _emailService.SendEmailAsync(user.Email!, "Verify your email", $"Your verification token is: {token}. Use this to verify your email via POST /api/v1/auth/verify-email");
+            
+            // Generate HTML Body
+            // In a real scenario, you'd construct a real URL, e.g. https://api.smartcampus.com/verify?token=...
+            // For now, we put the token in the HTML
+            var fakeUrl = $"https://smartcampus-api.com/verify-email?userId={user.Id}&token={token}";
+            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email!, fakeUrl);
+
+            await _emailService.SendEmailAsync(user.Email!, "Welcome to Smart Campus - Verify Email", body);
 
             return _mapper.Map<UserDto>(user);
         }
@@ -141,8 +161,11 @@ namespace SmartCampus.Business.Services
             }
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            // In real app, make link
-            await _emailService.SendEmailAsync(user.Email!, "Reset your password", $"Your reset token is: {token}. Use POST /api/v1/auth/reset-password with this token.");
+            
+            var fakeResetUrl = $"https://smartcampus-api.com/reset-password?email={user.Email}&token={token}";
+            var body = SmartCampus.Business.Helpers.EmailTemplates.GetPasswordResetEmail(fakeResetUrl);
+
+            await _emailService.SendEmailAsync(user.Email!, "Reset your password", body);
         }
 
         public async Task ResetPasswordAsync(string email, string token, string newPassword)
@@ -155,6 +178,7 @@ namespace SmartCampus.Business.Services
             {
                 throw new Exception("Password reset failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
             }
+            await LogActivityAsync(user.Id, "ResetPassword", "User reset their password via email token.");
         }
 
         public async Task<TokenDto> RefreshTokenAsync(string refreshToken)
@@ -174,6 +198,8 @@ namespace SmartCampus.Business.Services
             tokenRepo.Update(storedToken);
             await _unitOfWork.CompleteAsync();
 
+            await LogActivityAsync(user.Id, "RefreshToken", "User refreshed their access token.");
+
             return await GenerateTokensAsync(user);
         }
 
@@ -188,6 +214,29 @@ namespace SmartCampus.Business.Services
                  tokenRepo.Update(token);
              }
              await _unitOfWork.CompleteAsync();
+             
+             await LogActivityAsync(userId, "Logout", "User logged out.");
+        }
+
+        private async Task LogActivityAsync(int userId, string action, string description = "")
+        {
+            try 
+            {
+                var log = new UserActivityLog
+                {
+                    UserId = userId,
+                    Action = action,
+                    Description = description,
+                    Timestamp = DateTime.UtcNow
+                    // IpAddress could be passed down or retrieved if IHttpContextAccessor was injected
+                };
+                await _unitOfWork.Repository<UserActivityLog>().AddAsync(log);
+                await _unitOfWork.CompleteAsync();
+            }
+            catch 
+            {
+                // Logging should not break the main flow
+            }
         }
 
         private async Task<TokenDto> GenerateTokensAsync(User user)

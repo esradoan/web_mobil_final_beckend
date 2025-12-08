@@ -7,8 +7,10 @@ namespace SmartCampus.Business.Services
     {
         public Task SendEmailAsync(string to, string subject, string body)
         {
-            // For now, just log to console or debug output
-            Console.WriteLine($"[MockEmailService] To: {to}, Subject: {subject}, Body: {body}");
+            // Simulate sending HTML email
+            Console.WriteLine($"[MockEmailService] To: {to}");
+            Console.WriteLine($"[MockEmailService] Subject: {subject}");
+            Console.WriteLine($"[MockEmailService] Body (HTML Preview): {body.Substring(0, Math.Min(body.Length, 100))}..."); 
             return Task.CompletedTask;
         }
     }

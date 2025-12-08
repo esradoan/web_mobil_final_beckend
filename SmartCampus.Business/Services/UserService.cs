@@ -21,7 +21,7 @@ namespace SmartCampus.Business.Services
             _mapper = mapper;
         }
 
-        public async Task<UserDto> GetProfileAsync(int userId)
+        public async Task<UserDto?> GetProfileAsync(int userId)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null) return null;

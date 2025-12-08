@@ -1,12 +1,20 @@
 {
   "Version": 1,
-  "Hash": "YE3rhMAKLZf/yifgxR3CCyJrUZQFPtHl3XfwUV9/lho=",
+  "Hash": "8yQrEVRals2zYlTnjoNMXWxytz9p9Q1JhWM8rLEipUs=",
   "Source": "SmartCampus.API",
   "BasePath": "_content/SmartCampus.API",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
+  "DiscoveryPatterns": [
+    {
+      "Name": "SmartCampus.API\\wwwroot",
+      "Source": "SmartCampus.API",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\",
+      "BasePath": "_content/SmartCampus.API",
+      "Pattern": "**"
+    }
+  ],
   "Assets": [],
   "Endpoints": []
 }
