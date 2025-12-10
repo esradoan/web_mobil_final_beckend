@@ -10,12 +10,12 @@ namespace SmartCampus.DataAccess
         {
         }
 
-        public DbSet<Student> Students { get; set; }
-        public DbSet<Faculty> Faculties { get; set; }
-        public DbSet<Department> Departments { get; set; }
-        public DbSet<RefreshToken> RefreshTokens { get; set; }
-        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
-        public DbSet<UserActivityLog> UserActivityLogs { get; set; }
+        public DbSet<Student> Students { get; set; } = null!;
+        public DbSet<Faculty> Faculties { get; set; } = null!;
+        public DbSet<Department> Departments { get; set; } = null!;
+        public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; } = null!;
+        public DbSet<UserActivityLog> UserActivityLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

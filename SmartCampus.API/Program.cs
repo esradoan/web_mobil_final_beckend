@@ -141,62 +141,66 @@ builder.Services.AddAuthentication(x =>
 
 var app = builder.Build();
 
-// Auto-migrate database in Development
-if (app.Environment.IsDevelopment())
+// Auto-migrate database (both Development and Production)
+using (var scope = app.Services.CreateScope())
 {
-    using (var scope = app.Services.CreateScope())
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    try
     {
-        var services = scope.ServiceProvider;
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        try
+        var context = services.GetRequiredService<CampusDbContext>();
+        
+        // Check if database exists and can connect
+        if (context.Database.CanConnect())
         {
-            var context = services.GetRequiredService<CampusDbContext>();
+            logger.LogInformation("Database connection successful. Applying migrations...");
             
-            // Check if database exists and can connect
-            if (context.Database.CanConnect())
+            // Get pending migrations
+            var pendingMigrations = context.Database.GetPendingMigrations().ToList();
+            if (pendingMigrations.Any())
             {
-                logger.LogInformation("Database connection successful. Applying migrations...");
-                
-                // Get pending migrations
-                var pendingMigrations = context.Database.GetPendingMigrations().ToList();
-                if (pendingMigrations.Any())
-                {
-                    logger.LogInformation($"Found {pendingMigrations.Count()} pending migration(s): {string.Join(", ", pendingMigrations)}");
-                    // Apply pending migrations
-                    context.Database.Migrate();
-                    logger.LogInformation("Database migrations applied successfully.");
-                }
-                else
-                {
-                    logger.LogInformation("No pending migrations. Database is up to date.");
-                    // Note: "pending model changes" warning from EF Core is expected during development
-                    // It means the model has changed but no migration was created yet
-                    // This is OK - the app will continue to work
-                }
+                logger.LogInformation($"Found {pendingMigrations.Count()} pending migration(s): {string.Join(", ", pendingMigrations)}");
+                // Apply pending migrations
+                context.Database.Migrate();
+                logger.LogInformation("Database migrations applied successfully.");
             }
             else
             {
-                logger.LogWarning("Cannot connect to database. Please check your connection string.");
+                logger.LogInformation("No pending migrations. Database is up to date.");
             }
         }
-        catch (Exception ex)
+        else
         {
-            // Check if it's just a "pending changes" warning
+            logger.LogWarning("Cannot connect to database. Please check your connection string.");
+            // In Production, fail fast if database connection fails
+            if (app.Environment.IsProduction())
+            {
+                throw new Exception("Cannot connect to database in Production. Application cannot start.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        // In Production, migration failures should prevent app startup
+        if (app.Environment.IsProduction())
+        {
+            logger.LogError(ex, "❌ Critical error: Failed to migrate database in Production. Application cannot start.");
+            throw; // Fail fast in Production
+        }
+        else
+        {
+            // In Development, allow app to start even if migration fails
             if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
             {
-                // This is just a warning, not a critical error
-                // Log as warning and continue - app will work fine
                 logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
                 logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
                 logger.LogInformation("✅ Application will continue running...");
             }
             else
             {
-                // Real database error - log as error
                 logger.LogError(ex, "❌ An error occurred while migrating the database.");
+                logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
             }
-            // Don't throw - let the app start even if migration fails
-            // This allows the developer to fix migration issues manually
         }
     }
 }
