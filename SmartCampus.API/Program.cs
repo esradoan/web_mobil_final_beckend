@@ -145,9 +145,18 @@ if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !str
     
     // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
     // Railway internal network için SSL gerekmez
+    // Database name validation - boş olamaz
+    if (string.IsNullOrWhiteSpace(mysqlDatabase))
+    {
+        mysqlDatabase = "railway";
+        Console.WriteLine($"   ⚠️ MYSQLDATABASE was empty, using default: railway");
+    }
+    
     connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
     connectionStringSource = "MYSQL* variables";
     Console.WriteLine($"   ✅ Using MYSQL* variables to build connection string");
+    Console.WriteLine($"   📊 Database name: {mysqlDatabase}");
+    Console.WriteLine($"   📊 Connection string preview: Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password=***;Port={mysqlPort};");
 }
 // Öncelik 2: MYSQL_URL variable'ını kontrol et (fallback)
 else
