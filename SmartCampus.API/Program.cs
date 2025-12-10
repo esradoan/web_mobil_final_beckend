@@ -23,8 +23,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Ensure PascalCase property names (C# convention)
-        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+        // Use camelCase for JSON (standard for web APIs)
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.WriteIndented = true; // For debugging
     });
 builder.Services.AddEndpointsApiExplorer();

@@ -545,23 +545,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\desra\\.nuget\\packages\\": {},
+    "C:\\Users\\E\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
+      "projectUniqueName": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
       "projectName": "SmartCampus.Entities",
-      "projectPath": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
-      "packagesPath": "C:\\Users\\desra\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\obj\\",
+      "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
+      "packagesPath": "C:\\Users\\E\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\desra\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\E\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -570,6 +570,7 @@
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -588,7 +589,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.100"
+      "SdkAnalysisLevel": "10.0.100"
     },
     "frameworks": {
       "net9.0": {
@@ -615,7 +616,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.101/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

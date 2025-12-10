@@ -62,7 +62,7 @@ namespace SmartCampus.API.Controllers
                     });
                 }
                 
-                // Return TokenDto with PascalCase properties
+                // Return TokenDto (will be serialized as camelCase: accessToken, refreshToken, expiration)
                 return Ok(new
                 {
                     AccessToken = result.AccessToken,

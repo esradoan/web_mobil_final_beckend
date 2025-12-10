@@ -24,9 +24,6 @@
         }
       },
       "AutoMapper/12.0.1": {
-        "dependencies": {
-          "Microsoft.CSharp": "4.7.0"
-        },
         "runtime": {
           "lib/netstandard2.1/AutoMapper.dll": {
             "assemblyVersion": "12.0.0.0",
@@ -93,11 +90,9 @@
           }
         }
       },
-      "Microsoft.CSharp/4.7.0": {},
       "Microsoft.EntityFrameworkCore/9.0.0": {
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Abstractions": "9.0.0",
-          "Microsoft.EntityFrameworkCore.Analyzers": "9.0.0",
           "Microsoft.Extensions.Caching.Memory": "9.0.0",
           "Microsoft.Extensions.Logging": "9.0.0"
         },
@@ -116,7 +111,6 @@
           }
         }
       },
-      "Microsoft.EntityFrameworkCore.Analyzers/9.0.0": {},
       "Microsoft.EntityFrameworkCore.Relational/9.0.0": {
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "9.0.0",
@@ -343,7 +337,7 @@
         },
         "runtime": {
           "SmartCampus.DataAccess.dll": {
-            "assemblyVersion": "1.0.0",
+            "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -354,7 +348,7 @@
         },
         "runtime": {
           "SmartCampus.Entities.dll": {
-            "assemblyVersion": "1.0.0",
+            "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -416,13 +410,6 @@
       "path": "microsoft.aspnetcore.identity.entityframeworkcore/9.0.0",
       "hashPath": "microsoft.aspnetcore.identity.entityframeworkcore.9.0.0.nupkg.sha512"
     },
-    "Microsoft.CSharp/4.7.0": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-pTj+D3uJWyN3My70i2Hqo+OXixq3Os2D1nJ2x92FFo6sk8fYS1m1WLNTs0Dc1uPaViH0YvEEwvzddQ7y4rhXmA==",
-      "path": "microsoft.csharp/4.7.0",
-      "hashPath": "microsoft.csharp.4.7.0.nupkg.sha512"
-    },
     "Microsoft.EntityFrameworkCore/9.0.0": {
       "type": "package",
       "serviceable": true,
@@ -436,13 +423,6 @@
       "sha512": "sha512-fnmifFL8KaA4ZNLCVgfjCWhZUFxkrDInx5hR4qG7Q8IEaSiy/6VOSRFyx55oH7MV4y7wM3J3EE90nSpcVBI44Q==",
       "path": "microsoft.entityframeworkcore.abstractions/9.0.0",
       "hashPath": "microsoft.entityframeworkcore.abstractions.9.0.0.nupkg.sha512"
-    },
-    "Microsoft.EntityFrameworkCore.Analyzers/9.0.0": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-Qje+DzXJOKiXF72SL0XxNlDtTkvWWvmwknuZtFahY5hIQpRKO59qnGuERIQ3qlzuq5x4bAJ8WMbgU5DLhBgeOQ==",
-      "path": "microsoft.entityframeworkcore.analyzers/9.0.0",
-      "hashPath": "microsoft.entityframeworkcore.analyzers.9.0.0.nupkg.sha512"
     },
     "Microsoft.EntityFrameworkCore.Relational/9.0.0": {
       "type": "package",
