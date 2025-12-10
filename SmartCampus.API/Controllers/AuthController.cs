@@ -3,6 +3,7 @@ using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SmartCampus.API.Controllers
 {
@@ -103,15 +104,68 @@ namespace SmartCampus.API.Controllers
         [HttpPost("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyDto)
         {
-            await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
-            return Ok(new { message = "Email verified successfully" });
+            try
+            {
+                // Debug: Request'i logla
+                Console.WriteLine($"\n📥 VERIFY EMAIL REQUEST:");
+                Console.WriteLine($"   UserId: {verifyDto.UserId}");
+                Console.WriteLine($"   Token length: {verifyDto.Token?.Length ?? 0}");
+                Console.WriteLine($"   Token (first 50): {verifyDto.Token?.Substring(0, Math.Min(50, verifyDto.Token?.Length ?? 0))}...");
+                
+                if (string.IsNullOrEmpty(verifyDto.UserId) || string.IsNullOrEmpty(verifyDto.Token))
+                {
+                    Console.WriteLine($"❌ Missing UserId or Token");
+                    return BadRequest(new { message = "UserId and Token are required" });
+                }
+                
+                await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
+                
+                // Email doğrulandıktan sonra güncel user bilgilerini döndür
+                var userService = HttpContext.RequestServices.GetRequiredService<IUserService>();
+                var userDto = await userService.GetProfileAsync(int.Parse(verifyDto.UserId));
+                
+                Console.WriteLine($"✅ Email verification successful for user {verifyDto.UserId}");
+                
+                return Ok(new { 
+                    message = "Email verified successfully",
+                    user = userDto 
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Verify Email Error: {ex.Message}");
+                Console.WriteLine($"   StackTrace: {ex.StackTrace}");
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("resend-verification-email")]
+        public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationEmailDto dto)
+        {
+            try
+            {
+                await _authService.ResendVerificationEmailAsync(dto.Email);
+                return Ok(new { message = "Verification email sent successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
-            await _authService.ForgotPasswordAsync(dto.Email);
-            return Ok(new { message = "If user exists, reset link sent" });
+            try
+            {
+                await _authService.ForgotPasswordAsync(dto.Email);
+                return Ok(new { message = "If user exists, reset link sent" });
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't reveal if user exists (security)
+                return BadRequest(new { message = "Email gönderilemedi. Lütfen SMTP ayarlarını kontrol edin veya daha sonra tekrar deneyin." });
+            }
         }
 
         [HttpPost("reset-password")]
@@ -136,6 +190,11 @@ namespace SmartCampus.API.Controllers
     {
         public string UserId { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty;
+    }
+
+    public class ResendVerificationEmailDto
+    {
+        public string Email { get; set; } = string.Empty;
     }
 
     public class RefreshTokenDto 

@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {}
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {}
   },
   "projects": {
-    "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
         "projectName": "SmartCampus.Business",
-        "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
-        "packagesPath": "C:\\Users\\E\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Business\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\E\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -33,11 +33,11 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
-                "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
               },
-              "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
-                "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
               }
             }
           }
@@ -73,6 +73,10 @@
             "FluentValidation.DependencyInjectionExtensions": {
               "target": "Package",
               "version": "[11.9.0, )"
+            },
+            "MailKit": {
+              "target": "Package",
+              "version": "[4.8.0, )"
             },
             "Microsoft.Extensions.Configuration.Abstractions": {
               "target": "Package",
@@ -111,20 +115,20 @@
         }
       }
     },
-    "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
         "projectName": "SmartCampus.DataAccess",
-        "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
-        "packagesPath": "C:\\Users\\E\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.DataAccess\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\E\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -140,8 +144,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
-                "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
               }
             }
           }
@@ -191,20 +195,20 @@
         }
       }
     },
-    "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
         "projectName": "SmartCampus.Entities",
-        "projectPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
-        "packagesPath": "C:\\Users\\E\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\E\\Desktop\\b\\web_mobil_final_beckend\\SmartCampus.Entities\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\E\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],

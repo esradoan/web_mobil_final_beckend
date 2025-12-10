@@ -29,7 +29,7 @@ namespace SmartCampus.Business.Helpers
         <div style='background-color: white; padding: 20px; border-radius: 5px;'>
             <h2 style='color: #333;'>Reset Your Password</h2>
             <p>You requested a password reset. Click the button below to reset it:</p>
-            <a href='{resetUrl}' style='dbackground-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Reset Password</a>
+            <a href='{resetUrl}' style='background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Reset Password</a>
             <p>If you didn't request this, ignore this email.</p>
         </div>
     </div>

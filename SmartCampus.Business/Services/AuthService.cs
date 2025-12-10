@@ -78,7 +78,7 @@ namespace SmartCampus.Business.Services
             return await GenerateTokensAsync(user, loginDto.RememberMe);
         }
 
-        public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
+        public async Task<RegisterResponseDto> RegisterAsync(RegisterDto registerDto)
         {
             // 1. Check if exists
             var existingUser = await _userManager.FindByEmailAsync(registerDto.Email);
@@ -167,27 +167,149 @@ namespace SmartCampus.Business.Services
             // 5. Generate Email Verification Token
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             
-            // Generate HTML Body
-            // In a real scenario, you'd construct a real URL, e.g. https://api.smartcampus.com/verify?token=...
-            // For now, we put the token in the HTML
-            var fakeUrl = $"https://smartcampus-api.com/verify-email?userId={user.Id}&token={token}";
-            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email!, fakeUrl);
+            // URL-encode the token for safe transmission in URL
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
+            
+            // Generate verification URL
+            // In development: use localhost, in production: use actual frontend URL
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5173";
+            var verificationUrl = $"{frontendUrl}/verify-email?userId={user.Id}&token={encodedToken}";
+            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email!, verificationUrl);
 
             await _emailService.SendEmailAsync(user.Email!, "Welcome to Smart Campus - Verify Email", body);
 
-            return _mapper.Map<UserDto>(user);
+            // Return user with verification URL for frontend
+            return new RegisterResponseDto
+            {
+                User = _mapper.Map<UserDto>(user),
+                VerificationUrl = verificationUrl,
+                VerificationToken = encodedToken // For development - show in UI if mock email
+            };
         }
 
         public async Task VerifyEmailAsync(string userId, string token)
         {
+            Console.WriteLine($"\n🔍 VERIFY EMAIL DEBUG:");
+            Console.WriteLine($"   User ID: {userId}");
+            Console.WriteLine($"   Token (first 50 chars): {token.Substring(0, Math.Min(50, token.Length))}...");
+            
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) throw new Exception("User not found");
+            if (user == null) 
+            {
+                Console.WriteLine($"❌ User not found: {userId}");
+                throw new Exception("User not found");
+            }
 
-            var result = await _userManager.ConfirmEmailAsync(user, token);
+            Console.WriteLine($"   User Email: {user.Email}");
+            Console.WriteLine($"   Current EmailConfirmed: {user.EmailConfirmed}");
+            Console.WriteLine($"   Received token length: {token.Length}");
+            Console.WriteLine($"   User SecurityStamp: {user.SecurityStamp}");
+
+            // URL decode token if it's encoded (from email link)
+            // Frontend artık token'ı decode ediyor, ama yine de kontrol edelim
+            var decodedToken = token;
+            
+            // Token'da % karakteri varsa, encode edilmiş demektir (frontend decode etmemiş)
+            if (token.Contains("%"))
+            {
+                Console.WriteLine($"   ⚠️ Token contains % - frontend decode etmemiş, backend decode ediyor...");
+                var decodeAttempts = 0;
+                var maxDecodeAttempts = 5;
+                
+                while (decodeAttempts < maxDecodeAttempts)
+                {
+                    var previousToken = decodedToken;
+                    decodedToken = System.Net.WebUtility.UrlDecode(decodedToken);
+                    
+                    // Eğer decode işlemi token'ı değiştirmediyse, decode tamamlanmış demektir
+                    if (decodedToken == previousToken)
+                    {
+                        break;
+                    }
+                    decodeAttempts++;
+                }
+                
+                Console.WriteLine($"   Token decode attempts: {decodeAttempts}");
+            }
+            else
+            {
+                Console.WriteLine($"   ✅ Token does not contain % - frontend decode etmiş, using as-is");
+            }
+            
+            var tokenToUse = decodedToken;
+            
+            Console.WriteLine($"   Token length: {token.Length} -> {tokenToUse.Length} (after decode)");
+            Console.WriteLine($"   Token changed: {tokenToUse != token}");
+            Console.WriteLine($"   Token (first 30 chars): {tokenToUse.Substring(0, Math.Min(30, tokenToUse.Length))}...");
+            Console.WriteLine($"   Token (last 30 chars): ...{tokenToUse.Substring(Math.Max(0, tokenToUse.Length - 30))}");
+            Console.WriteLine($"   Token contains +: {tokenToUse.Contains("+")}");
+            Console.WriteLine($"   Token contains /: {tokenToUse.Contains("/")}");
+            Console.WriteLine($"   Token contains =: {tokenToUse.Contains("=")}");
+
+            // Identity token doğrulama
+            // Not: Token'ın tamamının geldiğinden emin ol (email client'lar bazen URL'yi kesebilir)
+            var result = await _userManager.ConfirmEmailAsync(user, tokenToUse);
+            
+            Console.WriteLine($"   ConfirmEmailAsync result: {result.Succeeded}");
             if (!result.Succeeded)
             {
-                throw new Exception("Email verification failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+                var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
+                Console.WriteLine($"❌ Errors: {errorMessages}");
+                
+                // Token'ın tamamının gelip gelmediğini kontrol et
+                // Identity token'ları genellikle 200+ karakterdir
+                if (tokenToUse.Length < 100)
+                {
+                    Console.WriteLine($"⚠️ WARNING: Token length is very short ({tokenToUse.Length} chars). Email client may have truncated the URL!");
+                    throw new Exception("Email verification failed: Token appears to be truncated. Please use the link directly from the email, or request a new verification email.");
+                }
+                
+                throw new Exception("Email verification failed: " + errorMessages);
             }
+            
+            // Verify email was actually confirmed (SecurityStamp güncelleme yapmadan)
+            var updatedUser = await _userManager.FindByIdAsync(userId);
+            Console.WriteLine($"   EmailConfirmed after verification: {updatedUser?.EmailConfirmed}");
+            Console.WriteLine($"✅ Email verification successful!\n");
+        }
+
+        public async Task ResendVerificationEmailAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                // To prevent email enumeration, return silently
+                return;
+            }
+
+            // Check if email is already verified
+            if (user.EmailConfirmed)
+            {
+                throw new Exception("Email is already verified");
+            }
+
+            // Generate new verification token
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
+            
+            // Generate verification URL
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5173";
+            var verificationUrl = $"{frontendUrl}/verify-email?userId={user.Id}&token={encodedToken}";
+            
+            // Debug: Log verification URL
+            Console.WriteLine($"\n📧 VERIFICATION EMAIL DEBUG:");
+            Console.WriteLine($"   User ID: {user.Id}");
+            Console.WriteLine($"   User Email: {user.Email}");
+            Console.WriteLine($"   Frontend URL: {frontendUrl}");
+            Console.WriteLine($"   Verification URL: {verificationUrl}");
+            Console.WriteLine($"   Token (first 50 chars): {token.Substring(0, Math.Min(50, token.Length))}...");
+            Console.WriteLine($"   Encoded Token (first 50 chars): {encodedToken.Substring(0, Math.Min(50, encodedToken.Length))}...\n");
+            
+            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email!, verificationUrl);
+
+            await _emailService.SendEmailAsync(user.Email!, "Verify your email - Smart Campus", body);
+            
+            Console.WriteLine($"✅ Verification email sent to: {user.Email}");
         }
 
         public async Task ForgotPasswordAsync(string email)
@@ -204,8 +326,12 @@ namespace SmartCampus.Business.Services
             
             // URL-encode the token for safe transmission in URL
             var encodedToken = System.Net.WebUtility.UrlEncode(token);
-            var fakeResetUrl = $"https://smartcampus-api.com/reset-password?email={user.Email}&token={encodedToken}";
-            var body = SmartCampus.Business.Helpers.EmailTemplates.GetPasswordResetEmail(fakeResetUrl);
+            
+            // Generate reset URL
+            // In development: use localhost, in production: use actual frontend URL
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5173";
+            var resetUrl = $"{frontendUrl}/reset-password?email={System.Net.WebUtility.UrlEncode(user.Email!)}&token={encodedToken}";
+            var body = SmartCampus.Business.Helpers.EmailTemplates.GetPasswordResetEmail(resetUrl);
 
             // Also log raw token for easy copy-paste in development
             Console.WriteLine($"\n🔑 RAW TOKEN (use this in Swagger): {token}\n");
@@ -215,14 +341,71 @@ namespace SmartCampus.Business.Services
 
         public async Task ResetPasswordAsync(string email, string token, string newPassword)
         {
+            Console.WriteLine($"\n🔑 RESET PASSWORD REQUEST:");
+            Console.WriteLine($"   Email: {email}");
+            Console.WriteLine($"   Token length: {token?.Length ?? 0}");
+            Console.WriteLine($"   Token (first 30): {token?.Substring(0, Math.Min(30, token?.Length ?? 0))}...");
+            
             var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) throw new Exception("Invalid request");
+            if (user == null) 
+            {
+                Console.WriteLine($"❌ User not found: {email}");
+                throw new Exception("Invalid request");
+            }
 
-            var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+            // URL decode token if it's encoded (from email link)
+            // Frontend artık token'ı decode ediyor, ama yine de kontrol edelim
+            var decodedToken = token;
+            
+            // Token'da % karakteri varsa, encode edilmiş demektir (frontend decode etmemiş)
+            if (token.Contains("%"))
+            {
+                Console.WriteLine($"   ⚠️ Token contains % - frontend decode etmemiş, backend decode ediyor...");
+                var decodeAttempts = 0;
+                var maxDecodeAttempts = 5;
+                
+                while (decodeAttempts < maxDecodeAttempts)
+                {
+                    var previousToken = decodedToken;
+                    decodedToken = System.Net.WebUtility.UrlDecode(decodedToken);
+                    
+                    // Eğer decode işlemi token'ı değiştirmediyse, decode tamamlanmış demektir
+                    if (decodedToken == previousToken)
+                    {
+                        break;
+                    }
+                    decodeAttempts++;
+                }
+                
+                Console.WriteLine($"   Token decode attempts: {decodeAttempts}");
+            }
+            else
+            {
+                Console.WriteLine($"   ✅ Token does not contain % - frontend decode etmiş, using as-is");
+            }
+            
+            var tokenToUse = decodedToken;
+            
+            Console.WriteLine($"   Token length: {token.Length} -> {tokenToUse.Length} (after decode)");
+            Console.WriteLine($"   Token changed: {tokenToUse != token}");
+            Console.WriteLine($"   Token (first 30 chars): {tokenToUse.Substring(0, Math.Min(30, tokenToUse.Length))}...");
+            Console.WriteLine($"   Token (last 30 chars): ...{tokenToUse.Substring(Math.Max(0, tokenToUse.Length - 30))}");
+            Console.WriteLine($"   Token contains +: {tokenToUse.Contains("+")}");
+            Console.WriteLine($"   Token contains /: {tokenToUse.Contains("/")}");
+            Console.WriteLine($"   Token contains =: {tokenToUse.Contains("=")}");
+
+            var result = await _userManager.ResetPasswordAsync(user, tokenToUse, newPassword);
+            
+            Console.WriteLine($"   ResetPasswordAsync result: {result.Succeeded}");
+            
             if (!result.Succeeded)
             {
-                throw new Exception("Password reset failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+                var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
+                Console.WriteLine($"❌ Errors: {errorMessages}");
+                throw new Exception("Password reset failed: " + errorMessages);
             }
+            
+            Console.WriteLine($"✅ Password reset successful for user: {email}");
             await LogActivityAsync(user.Id, "ResetPassword", "User reset their password via email token.");
         }
 

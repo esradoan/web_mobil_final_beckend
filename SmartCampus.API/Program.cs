@@ -16,6 +16,7 @@ using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.FileProviders; // Static files için
+using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,14 +35,52 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173", 
-                "http://localhost:5174", 
-                "http://localhost:5175",
-                "https://localhost:5173",
-                "https://localhost:5174",
-                "https://localhost:5175"
-              )
+        var allowedOrigins = new List<string>
+        {
+            // Local development ports
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "https://localhost:5173",
+            "https://localhost:5174",
+            "https://localhost:5175"
+        };
+        
+        // Production frontend URL'i environment variable'dan al
+        var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL");
+        if (!string.IsNullOrEmpty(frontendUrl))
+        {
+            // Birden fazla URL varsa (virgülle ayrılmış) ekle
+            var urls = frontendUrl.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var url in urls)
+            {
+                if (!string.IsNullOrEmpty(url) && !allowedOrigins.Contains(url))
+                {
+                    allowedOrigins.Add(url);
+                }
+            }
+        }
+        
+        // Railway frontend URL'i environment variable'dan al (opsiyonel - backward compatibility)
+        var railwayFrontendUrl = builder.Configuration["RailwayFrontendUrl"];
+        if (!string.IsNullOrEmpty(railwayFrontendUrl) && !allowedOrigins.Contains(railwayFrontendUrl))
+        {
+            allowedOrigins.Add(railwayFrontendUrl);
+        }
+        
+        // FrontendUrl'den de CORS için origin ekle (eğer farklıysa)
+        var configFrontendUrl = builder.Configuration["FrontendUrl"];
+        if (!string.IsNullOrEmpty(configFrontendUrl) && !allowedOrigins.Contains(configFrontendUrl))
+        {
+            allowedOrigins.Add(configFrontendUrl);
+            // HTTPS versiyonunu da ekle
+            if (configFrontendUrl.StartsWith("http://"))
+            {
+                allowedOrigins.Add(configFrontendUrl.Replace("http://", "https://"));
+            }
+        }
+        
+        policy.WithOrigins(allowedOrigins.ToArray())
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -75,7 +114,70 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configure MySQL Context
+// Önce ConnectionStrings__DefaultConnection environment variable'ını kontrol et
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionStringSource = "ConnectionStrings__DefaultConnection";
+
+// Eğer connection string yoksa, Railway'nin otomatik MySQL variable'larını kullan
+if (string.IsNullOrEmpty(connectionString))
+{
+    var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
+    var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+    var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
+    var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
+    var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
+    
+    // Railway'nin MYSQL_URL variable'ını da kontrol et (alternatif format)
+    var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
+    if (!string.IsNullOrEmpty(mysqlUrl))
+    {
+        connectionString = mysqlUrl;
+        connectionStringSource = "MYSQL_URL";
+    }
+    else if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+    {
+        // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
+        // Railway genellikle "railway" database'ini otomatik oluşturur
+        if (string.IsNullOrEmpty(mysqlDatabase))
+        {
+            mysqlDatabase = "railway";
+        }
+        
+        // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
+        // Railway internal network için SSL gerekmez
+        connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
+        connectionStringSource = "MYSQL* variables";
+    }
+}
+
+// Connection string validation ve detaylı logging
+if (string.IsNullOrEmpty(connectionString))
+{
+    var availableVars = new List<string>();
+    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLHOST"))) availableVars.Add("MYSQLHOST");
+    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLUSER"))) availableVars.Add("MYSQLUSER");
+    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLPASSWORD"))) availableVars.Add("MYSQLPASSWORD");
+    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLDATABASE"))) availableVars.Add("MYSQLDATABASE");
+    
+    throw new InvalidOperationException(
+        $"Connection string is not configured. " +
+        $"Please set either 'ConnectionStrings__DefaultConnection' environment variable " +
+        $"or Railway MySQL variables (MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE). " +
+        $"Available variables: {(availableVars.Any() ? string.Join(", ", availableVars) : "none")}"
+    );
+}
+
+// Connection string'de Database parametresinin varlığını kontrol et
+if (!connectionString.Contains("Database=", StringComparison.OrdinalIgnoreCase) && 
+    !connectionString.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException(
+        $"Connection string does not contain Database parameter. " +
+        $"Source: {connectionStringSource}. " +
+        $"Connection string (masked): {connectionString.Replace("Password=", "Password=***").Substring(0, Math.Min(200, connectionString.Length))}"
+    );
+}
+
 builder.Services.AddDbContext<CampusDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 23)), 
         mysqlOptions => mysqlOptions.EnableRetryOnFailure(
@@ -92,7 +194,6 @@ builder.Services.AddIdentityCore<User>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 8;
     options.User.RequireUniqueEmail = true;
-
     // Lockout settings
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
@@ -109,7 +210,24 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Register Business Services
 builder.Services.AddAutoMapper(typeof(SmartCampus.Business.Mappings.MappingProfile));
 builder.Services.AddValidatorsFromAssemblyContaining<SmartCampus.Business.Validators.RegisterDtoValidator>();
-builder.Services.AddScoped<IEmailService, MockEmailService>();
+
+// Email Service: Use SMTPEmailService if configured, otherwise fallback to MockEmailService
+var smtpSettings = builder.Configuration.GetSection("SmtpSettings");
+var smtpHost = smtpSettings["Host"];
+var smtpUsername = smtpSettings["Username"];
+var smtpPassword = smtpSettings["Password"];
+
+if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUsername) && !string.IsNullOrEmpty(smtpPassword))
+{
+    // Use real SMTP email service
+    builder.Services.AddScoped<IEmailService, SMTPEmailService>();
+}
+else
+{
+    // Fallback to mock email service if SMTP not configured
+    builder.Services.AddScoped<IEmailService, MockEmailService>();
+}
+
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
@@ -141,68 +259,181 @@ builder.Services.AddAuthentication(x =>
 
 var app = builder.Build();
 
-// Auto-migrate database (both Development and Production)
+// Log connection string (password'u gizle) - app build edildikten sonra
+var tempLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var maskedConnectionString = connectionString.Contains("Password=") 
+    ? connectionString.Substring(0, connectionString.IndexOf("Password=") + 9) + "***;" 
+    : connectionString;
+tempLogger.LogInformation($"🔌 Connection string source: {connectionStringSource}");
+tempLogger.LogInformation($"🔌 Using connection string: {maskedConnectionString}");
+
+// Connection string'den database adını çıkar ve logla
+var dbNameMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+if (dbNameMatch.Success)
+{
+    tempLogger.LogInformation($"📊 Database name from connection string: {dbNameMatch.Groups[1].Value}");
+}
+else
+{
+    tempLogger.LogWarning("⚠️ Database name not found in connection string!");
+}
+
+// Log email service status
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
-    var logger = services.GetRequiredService<ILogger<Program>>();
-    try
+    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    if (emailService is SMTPEmailService)
     {
-        var context = services.GetRequiredService<CampusDbContext>();
-        
-        // Check if database exists and can connect
-        if (context.Database.CanConnect())
+        logger.LogInformation("✅ SMTP Email Service aktif - Gerçek email gönderilecek");
+    }
+    else if (emailService is MockEmailService)
+    {
+        logger.LogWarning("⚠️  MockEmailService kullanılıyor. Gerçek email göndermek için appsettings.json'da SmtpSettings bölümünü doldurun.");
+    }
+}
+
+// Auto-migrate database (both Development and Production)
+// SKIP_MIGRATIONS environment variable ile migration'ı atlayabilirsiniz
+var skipMigrations = Environment.GetEnvironmentVariable("SKIP_MIGRATIONS") == "true";
+if (!skipMigrations)
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        try
         {
-            logger.LogInformation("Database connection successful. Applying migrations...");
+            var context = services.GetRequiredService<CampusDbContext>();
             
-            // Get pending migrations
-            var pendingMigrations = context.Database.GetPendingMigrations().ToList();
-            if (pendingMigrations.Any())
+            logger.LogInformation("🔍 Attempting to connect to database...");
+            
+            // Connection string'i logla (güvenlik için password gizli)
+            var dbConnectionString = context.Database.GetConnectionString();
+            if (!string.IsNullOrEmpty(dbConnectionString))
             {
-                logger.LogInformation($"Found {pendingMigrations.Count()} pending migration(s): {string.Join(", ", pendingMigrations)}");
-                // Apply pending migrations
-                context.Database.Migrate();
-                logger.LogInformation("Database migrations applied successfully.");
+                var maskedDbConn = dbConnectionString.Contains("Password=") 
+                    ? dbConnectionString.Substring(0, dbConnectionString.IndexOf("Password=") + 9) + "***;" 
+                    : dbConnectionString;
+                logger.LogInformation($"📊 Database connection string: {maskedDbConn}");
+            }
+            
+            // Check if database exists and can connect
+            var maxRetries = 3;
+            var retryDelay = TimeSpan.FromSeconds(5);
+            var connected = false;
+            
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    connected = context.Database.CanConnect();
+                    if (connected)
+                    {
+                        logger.LogInformation("✅ Database connection successful!");
+                        break;
+                    }
+                }
+                catch (Exception connectEx)
+                {
+                    logger.LogWarning($"⚠️ Connection attempt {i + 1}/{maxRetries} failed");
+                    logger.LogWarning($"   Error: {connectEx.Message}");
+                    
+                    // Inner exception varsa onu da logla
+                    if (connectEx.InnerException != null)
+                    {
+                        logger.LogWarning($"   Inner: {connectEx.InnerException.Message}");
+                    }
+                    
+                    // Database ile ilgili özel hata mesajları
+                    if (connectEx.Message.Contains("Unknown database", StringComparison.OrdinalIgnoreCase) ||
+                        connectEx.Message.Contains("database ''", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogError("❌ Database does not exist or database name is empty!");
+                        logger.LogError("💡 Solution: Check MYSQLDATABASE variable in Railway MySQL service");
+                        logger.LogError("💡 Or create the database manually in MySQL");
+                    }
+                    
+                    if (i < maxRetries - 1)
+                    {
+                        logger.LogInformation($"⏳ Retrying in {retryDelay.TotalSeconds} seconds...");
+                        Thread.Sleep(retryDelay);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+            
+            if (connected)
+            {
+                logger.LogInformation("🔄 Checking for pending migrations...");
+                
+                // Get pending migrations
+                var pendingMigrations = context.Database.GetPendingMigrations().ToList();
+                if (pendingMigrations.Any())
+                {
+                    logger.LogInformation($"📦 Found {pendingMigrations.Count()} pending migration(s): {string.Join(", ", pendingMigrations)}");
+                    logger.LogInformation("🚀 Applying migrations...");
+                    // Apply pending migrations
+                    context.Database.Migrate();
+                    logger.LogInformation("✅ Database migrations applied successfully.");
+                }
+                else
+                {
+                    logger.LogInformation("✅ No pending migrations. Database is up to date.");
+                }
             }
             else
             {
-                logger.LogInformation("No pending migrations. Database is up to date.");
+                logger.LogError("❌ Cannot connect to database after {MaxRetries} attempts.", maxRetries);
+                logger.LogError("💡 Please check:");
+                logger.LogError("   1. MySQL service is running on Railway");
+                logger.LogError("   2. Connection string is correct (ConnectionStrings__DefaultConnection or MYSQL* variables)");
+                logger.LogError("   3. Database name exists (MYSQLDATABASE variable)");
+                logger.LogError("   4. Network connectivity between services");
+                
+                // In Production, fail fast if database connection fails
+                if (app.Environment.IsProduction())
+                {
+                    throw new Exception("Cannot connect to database in Production. Application cannot start.");
+                }
             }
         }
-        else
+        catch (Exception ex)
         {
-            logger.LogWarning("Cannot connect to database. Please check your connection string.");
-            // In Production, fail fast if database connection fails
+            // In Production, migration failures should prevent app startup
             if (app.Environment.IsProduction())
             {
-                throw new Exception("Cannot connect to database in Production. Application cannot start.");
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        // In Production, migration failures should prevent app startup
-        if (app.Environment.IsProduction())
-        {
-            logger.LogError(ex, "❌ Critical error: Failed to migrate database in Production. Application cannot start.");
-            throw; // Fail fast in Production
-        }
-        else
-        {
-            // In Development, allow app to start even if migration fails
-            if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
-            {
-                logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
-                logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
-                logger.LogInformation("✅ Application will continue running...");
+                logger.LogError(ex, "❌ Critical error: Failed to migrate database in Production. Application cannot start.");
+                logger.LogError("💡 To skip migrations temporarily, set SKIP_MIGRATIONS=true environment variable");
+                throw; // Fail fast in Production
             }
             else
             {
-                logger.LogError(ex, "❌ An error occurred while migrating the database.");
-                logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
+                // In Development, allow app to start even if migration fails
+                if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
+                {
+                    logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
+                    logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
+                    logger.LogInformation("✅ Application will continue running...");
+                }
+                else
+                {
+                    logger.LogError(ex, "❌ An error occurred while migrating the database.");
+                    logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
+                }
             }
         }
     }
+}
+else
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogWarning("⚠️ SKIP_MIGRATIONS=true detected. Skipping database migrations.");
+    logger.LogWarning("⚠️ Make sure to run migrations manually or remove this flag.");
 }
 
 // Configure the HTTP request pipeline.
