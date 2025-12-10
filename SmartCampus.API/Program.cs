@@ -367,25 +367,6 @@ Console.WriteLine($"✅ JWT configured - Issuer: {jwtIssuer}, Audience: {jwtAudi
 
 var app = builder.Build();
 
-// Log connection string (password'u gizle) - app build edildikten sonra
-var tempLogger = app.Services.GetRequiredService<ILogger<Program>>();
-var maskedConnectionString = connectionString.Contains("Password=") 
-    ? connectionString.Substring(0, connectionString.IndexOf("Password=") + 9) + "***;" 
-    : connectionString;
-tempLogger.LogInformation($"🔌 Connection string source: {connectionStringSource}");
-tempLogger.LogInformation($"🔌 Using connection string: {maskedConnectionString}");
-
-// Connection string'den database adını çıkar ve logla
-var dbNameMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-if (dbNameMatch.Success)
-{
-    tempLogger.LogInformation($"📊 Database name from connection string: {dbNameMatch.Groups[1].Value}");
-}
-else
-{
-    tempLogger.LogWarning("⚠️ Database name not found in connection string!");
-}
-
 // Log email service status
 using (var scope = app.Services.CreateScope())
 {
