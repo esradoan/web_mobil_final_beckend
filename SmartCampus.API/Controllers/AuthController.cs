@@ -120,11 +120,24 @@ namespace SmartCampus.API.Controllers
                 
                 await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
                 
-                // Email doğrulandıktan sonra güncel user bilgilerini döndür
-                var userService = HttpContext.RequestServices.GetRequiredService<IUserService>();
-                var userDto = await userService.GetProfileAsync(int.Parse(verifyDto.UserId));
-                
                 Console.WriteLine($"✅ Email verification successful for user {verifyDto.UserId}");
+                
+                // Email doğrulandıktan sonra güncel user bilgilerini döndürmeye çalış
+                // Ama eğer concurrency hatası oluşursa, yine de success döndür (email zaten doğrulandı)
+                UserDto? userDto = null;
+                try
+                {
+                    var userService = HttpContext.RequestServices.GetRequiredService<IUserService>();
+                    userDto = await userService.GetProfileAsync(int.Parse(verifyDto.UserId));
+                    Console.WriteLine($"✅ User profile retrieved successfully");
+                }
+                catch (Exception profileEx)
+                {
+                    // Concurrency hatası veya başka bir hata olsa bile, email doğrulandı
+                    // Bu yüzden sadece log'la ama hata fırlatma
+                    Console.WriteLine($"⚠️ Warning: Could not retrieve user profile after verification: {profileEx.Message}");
+                    Console.WriteLine($"   This is usually a concurrency issue and can be ignored - email is already verified.");
+                }
                 
                 return Ok(new { 
                     message = "Email verified successfully",
@@ -161,7 +174,7 @@ namespace SmartCampus.API.Controllers
                 await _authService.ForgotPasswordAsync(dto.Email);
                 return Ok(new { message = "If user exists, reset link sent" });
             }
-            catch
+            catch (Exception ex)
             {
                 // Log the error but don't reveal if user exists (security)
                 return BadRequest(new { message = "Email gönderilemedi. Lütfen SMTP ayarlarını kontrol edin veya daha sonra tekrar deneyin." });
@@ -171,11 +184,32 @@ namespace SmartCampus.API.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
-            if (dto.NewPassword != dto.ConfirmPassword)
-                return BadRequest("Passwords do not match");
+            try
+            {
+                if (dto == null)
+                {
+                    return BadRequest(new { message = "Reset password data is required" });
+                }
 
-            await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
-            return Ok(new { message = "Password reset successfully" });
+                if (string.IsNullOrEmpty(dto.Email) || string.IsNullOrEmpty(dto.Token) || string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    return BadRequest(new { message = "Email, token, and new password are required" });
+                }
+
+                if (dto.NewPassword != dto.ConfirmPassword)
+                {
+                    return BadRequest(new { message = "Şifreler eşleşmiyor" });
+                }
+
+                await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
+                return Ok(new { message = "Şifre başarıyla sıfırlandı" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Reset Password Error: {ex.Message}");
+                Console.WriteLine($"   StackTrace: {ex.StackTrace}");
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("password-strength")]

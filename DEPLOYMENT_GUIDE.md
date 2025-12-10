@@ -20,13 +20,11 @@ Bu dokümantasyon, projenin hem **local development** hem de **Railway productio
 - `smart_campus_db` database'i oluşturulmuş olmalı
 - Root kullanıcısı şifresi: `1234`
 
-### Railway Production (Docker)
+### Railway Production
 
-**ÖNEMLİ:** Railway Docker kullanır, `.env` dosyaları kullanılmaz! Tüm ayarlar **Environment Variables** olarak Railway Dashboard'dan yapılır.
+Railway'de **Environment Variables** olarak ayarlayın:
 
-**Railway'de Environment Variables Ayarlama:**
-
-1. Railway Dashboard → Backend Projeniz → **Variables** sekmesi
+1. Railway Dashboard → Projeniz → **Variables** sekmesi
 2. Yeni variable ekleyin:
 
 ```
@@ -34,10 +32,7 @@ Name:  ConnectionStrings__DefaultConnection
 Value: Server=your-mysql-host;Database=campus_db;User=campus_user;Password=campus_password;Port=3307;
 ```
 
-**Not:** 
-- `__` (double underscore) kullanın! ASP.NET Core bunu `ConnectionStrings:DefaultConnection` olarak yorumlar.
-- Railway Docker container içinde çalışır, `.env` dosyaları okunmaz
-- Tüm configuration environment variables ile yapılır
+**Not:** `__` (double underscore) kullanın! ASP.NET Core bunu `ConnectionStrings:DefaultConnection` olarak yorumlar.
 
 **Örnek Railway MySQL Connection String:**
 ```
@@ -81,9 +76,7 @@ VITE_API_BASE_URL=http://localhost:5226/api/v1
 npm run dev
 ```
 
-### Railway Production (Docker/Static)
-
-**ÖNEMLİ:** Railway Docker veya static file serving kullanır, `.env.local` dosyaları kullanılmaz! Tüm ayarlar **Environment Variables** olarak Railway Dashboard'dan yapılır.
+### Railway Production
 
 **1. Railway Dashboard → Frontend Projeniz → Variables**
 
@@ -100,16 +93,13 @@ Name:  VITE_API_BASE_URL
 Value: https://smartcampus-backend-production.up.railway.app/api/v1
 ```
 
-**Not:**
-- Railway Docker container içinde build eder, `.env.local` dosyaları okunmaz
-- Environment variable'lar build zamanında `VITE_` prefix'i ile okunur
-- Build sonrası değişiklikler için yeniden deploy gerekir
-
 **2. Build ve Deploy:**
 
-Railway otomatik olarak build eder:
-- Dockerfile varsa Docker build kullanır
-- Yoksa `npm run build` çalıştırır
+Railway otomatik olarak build eder, ancak manuel build için:
+
+```bash
+npm run build
+```
 
 ## 📋 Railway Deployment Checklist
 
@@ -185,21 +175,10 @@ npm run dev
 2. Environment variable ekleyin: `VITE_API_BASE_URL`
 3. Deploy edin
 
-## 📝 Önemli Notlar
+## 📝 Notlar
 
-### Backend
 - **Local:** `appsettings.Development.json` otomatik kullanılır
-- **Railway (Docker):** `.env` dosyaları kullanılmaz! Sadece **Environment Variables** kullanılır
 - **Production:** Environment variable'lar `appsettings.json`'u override eder
-- **Dockerfile:** Railway otomatik olarak Dockerfile'ı kullanır
-
-### Frontend
-- **Local:** `.env.local` dosyası kullanılır (Git'e commit edilmez)
-- **Railway:** `.env.local` dosyaları kullanılmaz! Sadece **Environment Variables** kullanılır
-- **Build:** Railway build zamanında `VITE_` prefix'li environment variable'ları okur
-- **Deploy:** Environment variable değişiklikleri için yeniden deploy gerekir
-
-### CORS
-- Backend'de frontend URL'i `Program.cs`'de tanımlı olmalı
-- Railway'de `RailwayFrontendUrl` environment variable ile eklenebilir
+- **Frontend:** `.env.local` local için, Railway'de environment variable kullanın
+- **CORS:** Backend'de frontend URL'i `Program.cs`'de tanımlı olmalı
 
