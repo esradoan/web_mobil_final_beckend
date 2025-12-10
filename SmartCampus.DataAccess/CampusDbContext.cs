@@ -48,6 +48,15 @@ namespace SmartCampus.DataAccess
                 .WithMany()
                 .HasForeignKey(f => f.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Seed Data for Departments
+            modelBuilder.Entity<Department>().HasData(
+                new Department { Id = 1, Name = "Bilgisayar Mühendisliği", Code = "CENG", FacultyName = "Mühendislik Fakültesi", CreatedAt = new System.DateTime(2024, 1, 1) },
+                new Department { Id = 2, Name = "Elektrik-Elektronik Mühendisliği", Code = "EE", FacultyName = "Mühendislik Fakültesi", CreatedAt = new System.DateTime(2024, 1, 1) },
+                new Department { Id = 3, Name = "Yazılım Mühendisliği", Code = "SE", FacultyName = "Mühendislik Fakültesi", CreatedAt = new System.DateTime(2024, 1, 1) },
+                new Department { Id = 4, Name = "İşletme", Code = "BA", FacultyName = "İktisadi ve İdari Bilimler Fakültesi", CreatedAt = new System.DateTime(2024, 1, 1) },
+                new Department { Id = 5, Name = "Psikoloji", Code = "PSY", FacultyName = "Fen-Edebiyat Fakültesi", CreatedAt = new System.DateTime(2024, 1, 1) }
+            );
         }
     }
 }

@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection; // Explicitly added
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,7 +98,8 @@ builder.Services.AddIdentityCore<User>(options =>
     options.Lockout.AllowedForNewUsers = true;
 })
 .AddRoles<Role>()
-.AddEntityFrameworkStores<CampusDbContext>();
+.AddEntityFrameworkStores<CampusDbContext>()
+.AddDefaultTokenProviders();
 
 // Register Repositories
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartCampus.DataAccess;
 
@@ -11,9 +12,11 @@ using SmartCampus.DataAccess;
 namespace SmartCampus.DataAccess.Migrations
 {
     [DbContext(typeof(CampusDbContext))]
-    partial class CampusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210093453_AddDepartmentSeedData")]
+    partial class AddDepartmentSeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

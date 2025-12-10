@@ -202,8 +202,13 @@ namespace SmartCampus.Business.Services
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             
-            var fakeResetUrl = $"https://smartcampus-api.com/reset-password?email={user.Email}&token={token}";
+            // URL-encode the token for safe transmission in URL
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
+            var fakeResetUrl = $"https://smartcampus-api.com/reset-password?email={user.Email}&token={encodedToken}";
             var body = SmartCampus.Business.Helpers.EmailTemplates.GetPasswordResetEmail(fakeResetUrl);
+
+            // Also log raw token for easy copy-paste in development
+            Console.WriteLine($"\n🔑 RAW TOKEN (use this in Swagger): {token}\n");
 
             await _emailService.SendEmailAsync(user.Email!, "Reset your password", body);
         }
