@@ -121,60 +121,78 @@ var connectionStringSource = "ConnectionStrings__DefaultConnection";
 // Eğer connection string yoksa, Railway'nin otomatik MySQL variable'larını kullan
 if (string.IsNullOrEmpty(connectionString))
 {
+    // Önce ayrı ayrı MYSQL* variables'ları kontrol et (daha güvenilir)
     var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
     var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
     var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
     var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
     var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
     
-    // Railway'nin MYSQL_URL variable'ını da kontrol et (alternatif format)
-    var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
-    if (!string.IsNullOrEmpty(mysqlUrl))
-    {
-        // MYSQL_URL formatı: mysql://user:password@host:port/database
-        // Pomelo için Server=host;Database=database;User=user;Password=password;Port=port; formatına çevir
-        if (mysqlUrl.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var uri = new Uri(mysqlUrl);
-                var userInfo = uri.UserInfo.Split(':');
-                var user = userInfo.Length > 0 ? userInfo[0] : "";
-                var password = userInfo.Length > 1 ? userInfo[1] : "";
-                var host = uri.Host;
-                var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
-                var database = uri.AbsolutePath.TrimStart('/');
-                
-                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;";
-                connectionStringSource = "MYSQL_URL (parsed)";
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"⚠️ Failed to parse MYSQL_URL: {ex.Message}");
-                // Parse başarısız olursa, ayrı variables'ları kullan
-                connectionString = null;
-            }
-        }
-        else
-        {
-            // Zaten connection string formatındaysa direkt kullan
-            connectionString = mysqlUrl;
-            connectionStringSource = "MYSQL_URL";
-        }
-    }
-    else if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+    // Debug: Environment variables'ları logla
+    Console.WriteLine($"\n🔍 MySQL Environment Variables Check:");
+    Console.WriteLine($"   MYSQLHOST: {(string.IsNullOrEmpty(mysqlHost) ? "NOT SET" : mysqlHost)}");
+    Console.WriteLine($"   MYSQLUSER: {(string.IsNullOrEmpty(mysqlUser) ? "NOT SET" : mysqlUser)}");
+    Console.WriteLine($"   MYSQLPASSWORD: {(string.IsNullOrEmpty(mysqlPassword) ? "NOT SET" : "***SET***")}");
+    Console.WriteLine($"   MYSQLDATABASE: {(string.IsNullOrEmpty(mysqlDatabase) ? "NOT SET" : mysqlDatabase)}");
+    Console.WriteLine($"   MYSQLPORT: {mysqlPort}");
+    
+    // Öncelik 1: Ayrı ayrı MYSQL* variables kullan (daha güvenilir)
+    if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
     {
         // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
-        // Railway genellikle "railway" database'ini otomatik oluşturur
         if (string.IsNullOrEmpty(mysqlDatabase))
         {
             mysqlDatabase = "railway";
+            Console.WriteLine($"   ⚠️ MYSQLDATABASE not set, using default: railway");
         }
         
         // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
         // Railway internal network için SSL gerekmez
         connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
         connectionStringSource = "MYSQL* variables";
+        Console.WriteLine($"   ✅ Using MYSQL* variables to build connection string");
+    }
+    // Öncelik 2: MYSQL_URL variable'ını kontrol et (fallback)
+    else
+    {
+        var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
+        Console.WriteLine($"   MYSQL_URL: {(string.IsNullOrEmpty(mysqlUrl) ? "NOT SET" : "SET (length: " + mysqlUrl.Length + ")")}");
+        
+        if (!string.IsNullOrEmpty(mysqlUrl))
+        {
+            // MYSQL_URL formatı: mysql://user:password@host:port/database
+            // Pomelo için Server=host;Database=database;User=user;Password=password;Port=port; formatına çevir
+            if (mysqlUrl.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var uri = new Uri(mysqlUrl);
+                    var userInfo = uri.UserInfo.Split(':');
+                    var user = userInfo.Length > 0 ? userInfo[0] : "";
+                    var password = userInfo.Length > 1 ? userInfo[1] : "";
+                    var host = uri.Host;
+                    var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
+                    var database = uri.AbsolutePath.TrimStart('/');
+                    
+                    connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;";
+                    connectionStringSource = "MYSQL_URL (parsed)";
+                    Console.WriteLine($"   ✅ Successfully parsed MYSQL_URL");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"   ❌ Failed to parse MYSQL_URL: {ex.Message}");
+                    // Parse başarısız olursa, connection string null kalır
+                    connectionString = null;
+                }
+            }
+            else
+            {
+                // Zaten connection string formatındaysa direkt kullan
+                connectionString = mysqlUrl;
+                connectionStringSource = "MYSQL_URL";
+                Console.WriteLine($"   ✅ Using MYSQL_URL directly (not mysql:// format)");
+            }
+        }
     }
 }
 
