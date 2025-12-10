@@ -142,10 +142,10 @@ if (string.IsNullOrEmpty(connectionString))
                 var user = userInfo.Length > 0 ? userInfo[0] : "";
                 var password = userInfo.Length > 1 ? userInfo[1] : "";
                 var host = uri.Host;
-                var port = uri.Port > 0 ? uri.Port.ToString() : "3306";
+                var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
                 var database = uri.AbsolutePath.TrimStart('/');
                 
-                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={port};SslMode=None;";
+                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;";
                 connectionStringSource = "MYSQL_URL (parsed)";
             }
             catch (Exception ex)

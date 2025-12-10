@@ -174,7 +174,7 @@ namespace SmartCampus.API.Controllers
             await _authService.ForgotPasswordAsync(dto.Email);
             return Ok(new { message = "If user exists, reset link sent" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log the error but don't reveal if user exists (security)
                 return BadRequest(new { message = "Email gönderilemedi. Lütfen SMTP ayarlarını kontrol edin veya daha sonra tekrar deneyin." });
