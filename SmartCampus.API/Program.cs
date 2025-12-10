@@ -60,6 +60,13 @@ builder.Services.AddCors(options =>
                     // URL'i normalize et (trailing slash'i kaldır)
                     trimmedUrl = trimmedUrl.TrimEnd('/');
                     
+                    // Eğer protocol yoksa (sadece domain), https:// ekle
+                    if (!trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
+                        !trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        trimmedUrl = $"https://{trimmedUrl}";
+                    }
+                    
                     if (!allowedOrigins.Contains(trimmedUrl))
                     {
                         allowedOrigins.Add(trimmedUrl);
@@ -93,6 +100,12 @@ builder.Services.AddCors(options =>
         if (!string.IsNullOrEmpty(railwayFrontendUrl))
         {
             var trimmedUrl = railwayFrontendUrl.Trim().TrimEnd('/');
+            // Eğer protocol yoksa https:// ekle
+            if (!trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
+                !trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                trimmedUrl = $"https://{trimmedUrl}";
+            }
             if (!allowedOrigins.Contains(trimmedUrl))
             {
                 allowedOrigins.Add(trimmedUrl);
@@ -104,6 +117,12 @@ builder.Services.AddCors(options =>
         if (!string.IsNullOrEmpty(configFrontendUrl))
         {
             var trimmedUrl = configFrontendUrl.Trim().TrimEnd('/');
+            // Eğer protocol yoksa https:// ekle (production için)
+            if (!trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
+                !trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                trimmedUrl = builder.Environment.IsProduction() ? $"https://{trimmedUrl}" : $"http://{trimmedUrl}";
+            }
             if (!allowedOrigins.Contains(trimmedUrl))
             {
                 allowedOrigins.Add(trimmedUrl);
@@ -538,6 +557,24 @@ if (!app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Health check endpoint
+app.MapGet("/", () => new { 
+    status = "ok", 
+    message = "Smart Campus API is running",
+    timestamp = DateTime.UtcNow 
+});
+
+// API base path
+app.MapGet("/api", () => new { 
+    status = "ok", 
+    message = "Smart Campus API",
+    version = "v1",
+    endpoints = new {
+        auth = "/api/v1/auth",
+        users = "/api/v1/users"
+    }
+});
 
 app.MapControllers();
 
