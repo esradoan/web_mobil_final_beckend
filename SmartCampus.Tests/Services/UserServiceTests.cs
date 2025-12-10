@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Identity;
 using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
 using SmartCampus.Entities;
+using SmartCampus.DataAccess;
+using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartCampus.Tests.Services
 {
@@ -16,6 +19,7 @@ namespace SmartCampus.Tests.Services
     {
         private readonly Mock<UserManager<User>> _mockUserManager;
         private readonly Mock<IMapper> _mockMapper;
+        private readonly CampusDbContext _context;
         private readonly UserService _userService;
 
         public UserServiceTests()
@@ -23,7 +27,14 @@ namespace SmartCampus.Tests.Services
             var store = new Mock<IUserStore<User>>();
             _mockUserManager = new Mock<UserManager<User>>(store.Object, null, null, null, null, null, null, null, null);
             _mockMapper = new Mock<IMapper>();
-            _userService = new UserService(_mockUserManager.Object, _mockMapper.Object);
+            
+            // Create in-memory database for testing
+            var options = new DbContextOptionsBuilder<CampusDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+            _context = new CampusDbContext(options);
+            
+            _userService = new UserService(_mockUserManager.Object, _mockMapper.Object, _context);
         }
 
         // GetProfileAsync Tests

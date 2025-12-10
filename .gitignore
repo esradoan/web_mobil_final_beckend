@@ -420,3 +420,28 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Test projects
+SmartCampus.Tests/
+
+# Additional log files
+build_log*.txt
+test_*.txt
+full_log.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (keep root Dockerfile, ignore others)
+**/.dockerignore
+**/docker-compose.yml
+SmartCampus.API/Dockerfile
+
+# Environment files (additional patterns)
+**/.env.local
+**/.env.*.local
+
+# Documentation (keep README.md)
+**/*.md
+!README.md

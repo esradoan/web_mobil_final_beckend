@@ -46,12 +46,18 @@ namespace SmartCampus.Tests.Controllers
         {
             var registerDto = new RegisterDto { Email = "test@example.com", Password = "Test123!" };
             var userDto = new UserDto { Id = 1, Email = "test@example.com" };
-            _mockAuthService.Setup(x => x.RegisterAsync(registerDto)).ReturnsAsync(userDto);
+            var registerResponse = new RegisterResponseDto 
+            { 
+                User = userDto, 
+                VerificationUrl = "http://localhost:5173/verify-email",
+                VerificationToken = "test-token"
+            };
+            _mockAuthService.Setup(x => x.RegisterAsync(registerDto)).ReturnsAsync(registerResponse);
 
             var result = await _controller.Register(registerDto);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(userDto, okResult.Value);
+            Assert.Equal(registerResponse, okResult.Value);
         }
 
         // Login Tests

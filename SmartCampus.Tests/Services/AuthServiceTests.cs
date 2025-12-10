@@ -80,7 +80,8 @@ namespace SmartCampus.Tests.Services
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(registerDto.Email, result.Email);
+            Assert.NotNull(result.User);
+            Assert.Equal(registerDto.Email, result.User.Email);
             mockStudentRepo.Verify(r => r.AddAsync(It.IsAny<Student>()), Times.Once);
             _mockUnitOfWork.Verify(u => u.CompleteAsync(), Times.Once);
         }
