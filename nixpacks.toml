@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["dotnet-sdk_9"]
+
+[phases.install]
+cmds = [
+  "dotnet restore",
+  "dotnet publish SmartCampus.API/SmartCampus.API.csproj -c Release -o /app/publish"
+]
+
+[start]
+cmd = "cd /app/publish && dotnet SmartCampus.API.dll"
+

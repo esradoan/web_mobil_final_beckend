@@ -245,4 +245,16 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+// Railway ve diğer platformlar için PORT environment variable'ını kullan
+// Yerel geliştirmede PORT yoksa launchSettings.json kullanılır
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    // Production (Railway, Heroku, vb.) - PORT environment variable set edilmiş
+    app.Run($"http://0.0.0.0:{port}");
+}
+else
+{
+    // Development - launchSettings.json kullanılır
+    app.Run();
+}
