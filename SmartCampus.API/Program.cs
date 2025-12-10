@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.FileProviders; // Static files için
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -211,6 +212,27 @@ app.UseMiddleware<SmartCampus.API.Middleware.ExceptionMiddleware>();
 
 // CORS - Authentication'dan ÖNCE olmalı
 app.UseCors("AllowFrontend");
+
+// ⭐ Static Files Middleware - Profil resimleri için
+app.UseStaticFiles(); // wwwroot için
+
+// Uploads klasörünü serve et (profil resimleri burada)
+var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        // Cache 10 dakika
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=600");
+    }
+});
 
 // Development'ta HTTPS redirect'i devre dışı bırak (CORS sorununu önlemek için)
 if (!app.Environment.IsDevelopment())

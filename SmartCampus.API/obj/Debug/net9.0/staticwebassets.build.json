@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "8yQrEVRals2zYlTnjoNMXWxytz9p9Q1JhWM8rLEipUs=",
+  "Hash": "M4NUqHJh6N+1llKFk16Sz4D7c32veCMfstYx9QSj1iw=",
   "Source": "SmartCampus.API",
   "BasePath": "_content/SmartCampus.API",
   "Mode": "Default",
@@ -15,6 +15,760 @@
       "Pattern": "**"
     }
   ],
-  "Assets": [],
-  "Endpoints": []
+  "Assets": [
+    {
+      "Identity": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\Debug\\net9.0\\compressed\\8wkuh2lkc1-57hlbzytix.gz",
+      "SourceId": "SmartCampus.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\Debug\\net9.0\\compressed\\",
+      "BasePath": "_content/SmartCampus.API",
+      "RelativePath": "uploads/test#[.{fingerprint=57hlbzytix}]?.txt.gz",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Alternative",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\test.txt",
+      "AssetTraitName": "Content-Encoding",
+      "AssetTraitValue": "gzip",
+      "Fingerprint": "38ajcqj1mq",
+      "Integrity": "g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\test.txt"
+    },
+    {
+      "Identity": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.jpg",
+      "SourceId": "SmartCampus.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\",
+      "BasePath": "_content/SmartCampus.API",
+      "RelativePath": "uploads/07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "kg7v7t79ar",
+      "Integrity": "fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.jpg",
+      "SourceId": "SmartCampus.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\",
+      "BasePath": "_content/SmartCampus.API",
+      "RelativePath": "uploads/10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "kg7v7t79ar",
+      "Integrity": "fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.jpg",
+      "SourceId": "SmartCampus.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\",
+      "BasePath": "_content/SmartCampus.API",
+      "RelativePath": "uploads/4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "kg7v7t79ar",
+      "Integrity": "fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.jpg",
+      "SourceId": "SmartCampus.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\",
+      "BasePath": "_content/SmartCampus.API",
+      "RelativePath": "uploads/ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "kg7v7t79ar",
+      "Integrity": "fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\test.txt",
+      "SourceId": "SmartCampus.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\",
+      "BasePath": "_content/SmartCampus.API",
+      "RelativePath": "uploads/test#[.{fingerprint}]?.txt",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "57hlbzytix",
+      "Integrity": "UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\uploads\\test.txt"
+    }
+  ],
+  "Endpoints": [
+    {
+      "Route": "uploads/07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:30:59 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.kg7v7t79ar.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:30:59 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "kg7v7t79ar"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/07a8020f-a3d1-4fae-9b42-50f0b66e492f_ESRAGÖRSEL.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:27:19 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.kg7v7t79ar.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:27:19 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "kg7v7t79ar"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/10a6d607-0453-43b1-a529-a2b254ef4494_ESRAGÖRSEL.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:27:55 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.kg7v7t79ar.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:27:55 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "kg7v7t79ar"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/4ddcd00e-bfc0-4a5b-854a-ebd25c0b254b_ESRAGÖRSEL.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:35:04 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.kg7v7t79ar.jpg",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "331446"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:35:04 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "kg7v7t79ar"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/ae0d1963-7914-4d6c-b75f-66349396c8d4_ESRAGÖRSEL.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-fB0ysVbYvLGDpEQw1LEf1Lf/oN6Sb1nPzS0ZNlWaZeQ="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/test.57hlbzytix.txt",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\Debug\\net9.0\\compressed\\8wkuh2lkc1-57hlbzytix.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.033333333333"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "29"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:45:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/plain"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "57hlbzytix"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/test.txt"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/test.57hlbzytix.txt",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\test.txt",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/plain"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:45:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "57hlbzytix"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/test.txt"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/test.57hlbzytix.txt.gz",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\Debug\\net9.0\\compressed\\8wkuh2lkc1-57hlbzytix.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "29"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/plain"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:45:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "57hlbzytix"
+        },
+        {
+          "Name": "label",
+          "Value": "uploads/test.txt.gz"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/test.txt",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\Debug\\net9.0\\compressed\\8wkuh2lkc1-57hlbzytix.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.033333333333"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "29"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:45:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/plain"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/test.txt",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\wwwroot\\uploads\\test.txt",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/plain"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:45:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-UQHhkFeS6nln3jL6a83ROwvNqCVGnC64veBNbGlHWVA="
+        }
+      ]
+    },
+    {
+      "Route": "uploads/test.txt.gz",
+      "AssetFile": "C:\\Users\\desra\\OneDrive\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\Debug\\net9.0\\compressed\\8wkuh2lkc1-57hlbzytix.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "29"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/plain"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 10 Dec 2025 11:45:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-g15wqH14N8MdOG6hZmAHscaYijL1AqsPudqtquZSLbA="
+        }
+      ]
+    }
+  ]
 }
