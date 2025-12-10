@@ -54,31 +54,74 @@ builder.Services.AddCors(options =>
             var urls = frontendUrl.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (var url in urls)
             {
-                if (!string.IsNullOrEmpty(url) && !allowedOrigins.Contains(url))
+                var trimmedUrl = url.Trim();
+                if (!string.IsNullOrEmpty(trimmedUrl))
                 {
-                    allowedOrigins.Add(url);
+                    // URL'i normalize et (trailing slash'i kaldır)
+                    trimmedUrl = trimmedUrl.TrimEnd('/');
+                    
+                    if (!allowedOrigins.Contains(trimmedUrl))
+                    {
+                        allowedOrigins.Add(trimmedUrl);
+                    }
+                    
+                    // HTTPS versiyonunu da ekle (eğer HTTP ise)
+                    if (trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var httpsUrl = trimmedUrl.Replace("http://", "https://", StringComparison.OrdinalIgnoreCase);
+                        if (!allowedOrigins.Contains(httpsUrl))
+                        {
+                            allowedOrigins.Add(httpsUrl);
+                        }
+                    }
+                    // HTTP versiyonunu da ekle (eğer HTTPS ise ve production değilse)
+                    else if (trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && 
+                             !builder.Environment.IsProduction())
+                    {
+                        var httpUrl = trimmedUrl.Replace("https://", "http://", StringComparison.OrdinalIgnoreCase);
+                        if (!allowedOrigins.Contains(httpUrl))
+                        {
+                            allowedOrigins.Add(httpUrl);
+                        }
+                    }
                 }
             }
         }
         
         // Railway frontend URL'i environment variable'dan al (opsiyonel - backward compatibility)
         var railwayFrontendUrl = builder.Configuration["RailwayFrontendUrl"];
-        if (!string.IsNullOrEmpty(railwayFrontendUrl) && !allowedOrigins.Contains(railwayFrontendUrl))
+        if (!string.IsNullOrEmpty(railwayFrontendUrl))
         {
-            allowedOrigins.Add(railwayFrontendUrl);
+            var trimmedUrl = railwayFrontendUrl.Trim().TrimEnd('/');
+            if (!allowedOrigins.Contains(trimmedUrl))
+            {
+                allowedOrigins.Add(trimmedUrl);
+            }
         }
         
         // FrontendUrl'den de CORS için origin ekle (eğer farklıysa)
         var configFrontendUrl = builder.Configuration["FrontendUrl"];
-        if (!string.IsNullOrEmpty(configFrontendUrl) && !allowedOrigins.Contains(configFrontendUrl))
+        if (!string.IsNullOrEmpty(configFrontendUrl))
         {
-            allowedOrigins.Add(configFrontendUrl);
-            // HTTPS versiyonunu da ekle
-            if (configFrontendUrl.StartsWith("http://"))
+            var trimmedUrl = configFrontendUrl.Trim().TrimEnd('/');
+            if (!allowedOrigins.Contains(trimmedUrl))
             {
-                allowedOrigins.Add(configFrontendUrl.Replace("http://", "https://"));
+                allowedOrigins.Add(trimmedUrl);
+            }
+            // HTTPS versiyonunu da ekle
+            if (trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                var httpsUrl = trimmedUrl.Replace("http://", "https://", StringComparison.OrdinalIgnoreCase);
+                if (!allowedOrigins.Contains(httpsUrl))
+                {
+                    allowedOrigins.Add(httpsUrl);
+                }
             }
         }
+        
+        // CORS allowed origins'i logla (debug için)
+        Console.WriteLine($"\n🌐 CORS Configuration:");
+        Console.WriteLine($"   Allowed Origins ({allowedOrigins.Count}): {string.Join(", ", allowedOrigins)}");
         
         policy.WithOrigins(allowedOrigins.ToArray())
               .AllowAnyMethod()
@@ -152,11 +195,13 @@ if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !str
         Console.WriteLine($"   ⚠️ MYSQLDATABASE was empty, using default: railway");
     }
     
-    connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
+    // MySQL 8.0+ için AllowPublicKeyRetrieval=True gerekli (caching_sha2_password authentication için)
+    // Pomelo.EntityFrameworkCore.MySql için "User" kullanılır (User ID değil)
+    connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;AllowPublicKeyRetrieval=True;";
     connectionStringSource = "MYSQL* variables";
     Console.WriteLine($"   ✅ Using MYSQL* variables to build connection string");
     Console.WriteLine($"   📊 Database name: {mysqlDatabase}");
-    Console.WriteLine($"   📊 Connection string preview: Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password=***;Port={mysqlPort};");
+    Console.WriteLine($"   📊 Connection string preview: Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password=***;Port={mysqlPort};AllowPublicKeyRetrieval=True;");
 }
 // Öncelik 2: MYSQL_URL variable'ını kontrol et (fallback)
 else
@@ -180,9 +225,19 @@ else
                 var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
                 var database = uri.AbsolutePath.TrimStart('/');
                 
-                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;";
+                // Database name validation - boş olamaz
+                if (string.IsNullOrWhiteSpace(database))
+                {
+                    // MYSQLDATABASE variable'ını kontrol et
+                    database = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
+                    Console.WriteLine($"   ⚠️ Database name not found in MYSQL_URL, using: {database}");
+                }
+                
+                // MySQL 8.0+ için AllowPublicKeyRetrieval=True gerekli (caching_sha2_password authentication için)
+                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;AllowPublicKeyRetrieval=True;";
                 connectionStringSource = "MYSQL_URL (parsed)";
                 Console.WriteLine($"   ✅ Successfully parsed MYSQL_URL");
+                Console.WriteLine($"   📊 Database name: {database}");
             }
             catch (Exception ex)
             {
@@ -194,6 +249,25 @@ else
         else
         {
             // Zaten connection string formatındaysa direkt kullan
+            // Ama database name kontrolü yap
+            if (!mysqlUrl.Contains("Database=", StringComparison.OrdinalIgnoreCase) && 
+                !mysqlUrl.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+            {
+                // Database parametresi yoksa ekle
+                var database = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
+                var separator = mysqlUrl.EndsWith(";") ? "" : ";";
+                mysqlUrl = $"{mysqlUrl}{separator}Database={database};";
+                Console.WriteLine($"   ⚠️ Database parameter not found in MYSQL_URL, added: Database={database}");
+            }
+            
+            // AllowPublicKeyRetrieval=True ekle (yoksa)
+            if (!mysqlUrl.Contains("AllowPublicKeyRetrieval=", StringComparison.OrdinalIgnoreCase))
+            {
+                var separator = mysqlUrl.EndsWith(";") ? "" : ";";
+                mysqlUrl = $"{mysqlUrl}{separator}AllowPublicKeyRetrieval=True;";
+                Console.WriteLine($"   ⚠️ AllowPublicKeyRetrieval not found in MYSQL_URL, added");
+            }
+            
             connectionString = mysqlUrl;
             connectionStringSource = "MYSQL_URL";
             Console.WriteLine($"   ✅ Using MYSQL_URL directly (not mysql:// format)");
@@ -210,6 +284,25 @@ if (string.IsNullOrEmpty(connectionString))
         connectionString = configConnectionString;
         connectionStringSource = "ConnectionStrings__DefaultConnection (appsettings.json)";
         Console.WriteLine($"   ⚠️ Using connection string from appsettings.json (fallback)");
+        
+        // AllowPublicKeyRetrieval=True ekle (yoksa ve Production değilse)
+        // Production'da Railway MySQL kullanılmalı, appsettings.json fallback olmamalı
+        if (!connectionString.Contains("AllowPublicKeyRetrieval=", StringComparison.OrdinalIgnoreCase))
+        {
+            var separator = connectionString.EndsWith(";") ? "" : ";";
+            connectionString = $"{connectionString}{separator}AllowPublicKeyRetrieval=True;";
+            Console.WriteLine($"   ⚠️ Added AllowPublicKeyRetrieval=True to connection string");
+        }
+        
+        // Database name validation
+        if (!connectionString.Contains("Database=", StringComparison.OrdinalIgnoreCase) && 
+            !connectionString.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+        {
+            var database = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
+            var separator = connectionString.EndsWith(";") ? "" : ";";
+            connectionString = $"{connectionString}{separator}Database={database};";
+            Console.WriteLine($"   ⚠️ Database parameter not found, added: Database={database}");
+        }
     }
 }
 
@@ -275,28 +368,87 @@ builder.Services.AddAutoMapper(typeof(SmartCampus.Business.Mappings.MappingProfi
 builder.Services.AddValidatorsFromAssemblyContaining<SmartCampus.Business.Validators.RegisterDtoValidator>();
 
 // Email Service: Use SMTPEmailService if configured, otherwise fallback to MockEmailService
-var smtpSettings = builder.Configuration.GetSection("SmtpSettings");
-var smtpHost = smtpSettings["Host"];
-var smtpUsername = smtpSettings["Username"];
-var smtpPassword = smtpSettings["Password"];
+// Öncelik: Environment variables > appsettings.json
+var smtpHost = Environment.GetEnvironmentVariable("SmtpSettings__Host") ?? builder.Configuration["SmtpSettings:Host"];
+var smtpPort = Environment.GetEnvironmentVariable("SmtpSettings__Port") ?? builder.Configuration["SmtpSettings:Port"] ?? "587";
+var smtpUsername = Environment.GetEnvironmentVariable("SmtpSettings__Username") ?? builder.Configuration["SmtpSettings:Username"];
+var smtpPassword = Environment.GetEnvironmentVariable("SmtpSettings__Password") ?? builder.Configuration["SmtpSettings:Password"];
+var smtpFromEmail = Environment.GetEnvironmentVariable("SmtpSettings__FromEmail") ?? builder.Configuration["SmtpSettings:FromEmail"];
+var smtpFromName = Environment.GetEnvironmentVariable("SmtpSettings__FromName") ?? builder.Configuration["SmtpSettings:FromName"] ?? "Smart Campus";
+var smtpEnableSsl = Environment.GetEnvironmentVariable("SmtpSettings__EnableSsl") ?? builder.Configuration["SmtpSettings:EnableSsl"] ?? "true";
 
+// SMTP settings'i configuration'a ekle (SMTPEmailService kullanacak)
 if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUsername) && !string.IsNullOrEmpty(smtpPassword))
 {
+    // Configuration'a environment variable'lardan gelen değerleri ekle
+    builder.Configuration["SmtpSettings:Host"] = smtpHost;
+    builder.Configuration["SmtpSettings:Port"] = smtpPort;
+    builder.Configuration["SmtpSettings:Username"] = smtpUsername;
+    builder.Configuration["SmtpSettings:Password"] = smtpPassword;
+    builder.Configuration["SmtpSettings:FromEmail"] = smtpFromEmail ?? smtpUsername;
+    builder.Configuration["SmtpSettings:FromName"] = smtpFromName;
+    builder.Configuration["SmtpSettings:EnableSsl"] = smtpEnableSsl;
+    
     // Use real SMTP email service
     builder.Services.AddScoped<IEmailService, SMTPEmailService>();
+    Console.WriteLine($"✅ SMTP Email Service configured - Host: {smtpHost}, Port: {smtpPort}, From: {smtpFromEmail ?? smtpUsername}");
 }
 else
 {
     // Fallback to mock email service if SMTP not configured
     builder.Services.AddScoped<IEmailService, MockEmailService>();
+    Console.WriteLine("⚠️ MockEmailService will be used - SMTP not fully configured");
 }
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
 // Configure JWT Authentication
+// Öncelik: Environment variables > appsettings.json
+var jwtSecret = Environment.GetEnvironmentVariable("JwtSettings__Secret") ?? builder.Configuration["JwtSettings:Secret"];
+var jwtIssuer = Environment.GetEnvironmentVariable("JwtSettings__Issuer") ?? builder.Configuration["JwtSettings:Issuer"] ?? "SmartCampusAPI";
+var jwtAudience = Environment.GetEnvironmentVariable("JwtSettings__Audience") ?? builder.Configuration["JwtSettings:Audience"] ?? "SmartCampusClient";
+var jwtAccessTokenExpiration = Environment.GetEnvironmentVariable("JwtSettings__AccessTokenExpirationMinutes") ?? builder.Configuration["JwtSettings:AccessTokenExpirationMinutes"] ?? "15";
+var jwtRefreshTokenExpiration = Environment.GetEnvironmentVariable("JwtSettings__RefreshTokenExpirationDays") ?? builder.Configuration["JwtSettings:RefreshTokenExpirationDays"] ?? "7";
+
+// JWT Secret validation - Production'da mutlaka set edilmeli
+if (string.IsNullOrEmpty(jwtSecret))
+{
+    var isProduction = builder.Environment.IsProduction() || 
+                       Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Production", StringComparison.OrdinalIgnoreCase) == true;
+    
+    if (isProduction)
+    {
+        throw new InvalidOperationException(
+            "JWT Secret is not configured. " +
+            "Please set 'JwtSettings__Secret' environment variable in Railway. " +
+            "Secret must be at least 32 characters long."
+        );
+    }
+    else
+    {
+        // Development için default secret (güvenli değil, sadece development için)
+        jwtSecret = "SuperSecretKeyForSmartCampusProject_MustBeVeryLong_AtLeast32Chars";
+        Console.WriteLine("⚠️ Using default JWT Secret (NOT SECURE - Development only)");
+    }
+}
+
+if (jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException(
+        $"JWT Secret must be at least 32 characters long. Current length: {jwtSecret.Length}"
+    );
+}
+
+// Configuration'a environment variable'lardan gelen değerleri ekle
+builder.Configuration["JwtSettings:Secret"] = jwtSecret;
+builder.Configuration["JwtSettings:Issuer"] = jwtIssuer;
+builder.Configuration["JwtSettings:Audience"] = jwtAudience;
+builder.Configuration["JwtSettings:AccessTokenExpirationMinutes"] = jwtAccessTokenExpiration;
+builder.Configuration["JwtSettings:RefreshTokenExpirationDays"] = jwtRefreshTokenExpiration;
+
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]!);
+var key = Encoding.ASCII.GetBytes(jwtSecret);
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -312,13 +464,15 @@ builder.Services.AddAuthentication(x =>
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         // Map JWT 'sub' claim to NameIdentifier
         NameClaimType = ClaimTypes.NameIdentifier,
         RoleClaimType = ClaimTypes.Role
     };
 });
+
+Console.WriteLine($"✅ JWT configured - Issuer: {jwtIssuer}, Audience: {jwtAudience}, AccessTokenExpiration: {jwtAccessTokenExpiration} minutes");
 
 var app = builder.Build();
 
@@ -546,19 +700,37 @@ app.MapControllers();
 // Railway ve diğer platformlar için PORT environment variable'ını kullan
 // Yerel geliştirmede PORT yoksa launchSettings.json kullanılır
 var port = Environment.GetEnvironmentVariable("PORT");
-Console.WriteLine($"\n🔌 PORT Environment Variable: {(string.IsNullOrEmpty(port) ? "NOT SET" : port)}");
+var environment = app.Environment.EnvironmentName;
+var isProduction = app.Environment.IsProduction();
+
+Console.WriteLine($"\n🚀 Application Startup Configuration:");
+Console.WriteLine($"   Environment: {environment}");
+Console.WriteLine($"   IsProduction: {isProduction}");
+Console.WriteLine($"   PORT Environment Variable: {(string.IsNullOrEmpty(port) ? "NOT SET (using launchSettings.json)" : port)}");
 
 if (!string.IsNullOrEmpty(port))
 {
     // Production (Railway, Heroku, vb.) - PORT environment variable set edilmiş
-    var listenUrl = $"http://0.0.0.0:{port}";
+    if (!int.TryParse(port, out int portNumber) || portNumber <= 0 || portNumber > 65535)
+    {
+        throw new InvalidOperationException(
+            $"Invalid PORT environment variable value: '{port}'. " +
+            $"PORT must be a valid integer between 1 and 65535."
+        );
+    }
+    
+    var listenUrl = $"http://0.0.0.0:{portNumber}";
     Console.WriteLine($"✅ Starting application on: {listenUrl}");
     Console.WriteLine($"🌐 Application will be accessible on Railway's domain");
+    Console.WriteLine($"📡 Listening on all network interfaces (0.0.0.0)");
+    
+    // Railway otomatik olarak HTTPS proxy yapar, bu yüzden HTTP dinliyoruz
     app.Run(listenUrl);
 }
 else
 {
     // Development - launchSettings.json kullanılır
-    Console.WriteLine($"⚠️ PORT not set, using launchSettings.json (development mode)");
+    Console.WriteLine($"ℹ️ PORT not set, using launchSettings.json (development mode)");
+    Console.WriteLine($"   Default URLs: http://localhost:5226, https://localhost:7183");
     app.Run();
 }
