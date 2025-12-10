@@ -414,10 +414,10 @@ var jwtRefreshTokenExpiration = Environment.GetEnvironmentVariable("JwtSettings_
 // JWT Secret validation - Production'da mutlaka set edilmeli
 if (string.IsNullOrEmpty(jwtSecret))
 {
-    var isProduction = builder.Environment.IsProduction() || 
-                       Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Production", StringComparison.OrdinalIgnoreCase) == true;
+    var isProductionEnv = builder.Environment.IsProduction() || 
+                          Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Production", StringComparison.OrdinalIgnoreCase) == true;
     
-    if (isProduction)
+    if (isProductionEnv)
     {
         throw new InvalidOperationException(
             "JWT Secret is not configured. " +
