@@ -68,7 +68,7 @@ namespace SmartCampus.Business.Services
             // Log activity (ignore errors if table doesn't exist yet)
             try
             {
-                await LogActivityAsync(user.Id, "Login", "User logged in via password.");
+            await LogActivityAsync(user.Id, "Login", "User logged in via password.");
             }
             catch
             {
@@ -126,29 +126,29 @@ namespace SmartCampus.Business.Services
             // 5. Create Role-Specific Entry (now we know everything is valid)
             try
             {
-                if (registerDto.Role == UserRole.Student)
+            if (registerDto.Role == UserRole.Student)
+            {
+                var student = new Student
                 {
-                    var student = new Student
-                    {
-                        UserId = user.Id,
+                    UserId = user.Id,
                         StudentNumber = registerDto.StudentNumber!,
                         DepartmentId = registerDto.DepartmentId!.Value
-                    };
-                    await _unitOfWork.Repository<Student>().AddAsync(student);
-                }
-                else if (registerDto.Role == UserRole.Faculty)
+                };
+                await _unitOfWork.Repository<Student>().AddAsync(student);
+            }
+            else if (registerDto.Role == UserRole.Faculty)
+            {
+                var faculty = new Faculty
                 {
-                    var faculty = new Faculty
-                    {
-                        UserId = user.Id,
+                    UserId = user.Id,
                         EmployeeNumber = registerDto.EmployeeNumber!,
                         DepartmentId = registerDto.DepartmentId!.Value,
-                        Title = "Instructor" 
-                    };
-                    await _unitOfWork.Repository<Faculty>().AddAsync(faculty);
-                }
+                    Title = "Instructor" 
+                };
+                await _unitOfWork.Repository<Faculty>().AddAsync(faculty);
+            }
 
-                await _unitOfWork.CompleteAsync();
+            await _unitOfWork.CompleteAsync();
             }
             catch (Exception ex)
             {

@@ -22,9 +22,9 @@ namespace SmartCampus.API.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
             try
-            {
-                var result = await _authService.RegisterAsync(registerDto);
-                return Ok(result);
+        {
+            var result = await _authService.RegisterAsync(registerDto);
+            return Ok(result);
             }
             catch (Exception ex)
             {
@@ -46,7 +46,7 @@ namespace SmartCampus.API.Controllers
                     return BadRequest(new { message = "Login data is required" });
                 }
 
-                var result = await _authService.LoginAsync(loginDto);
+            var result = await _authService.LoginAsync(loginDto);
                 
                 // Ensure tokens are present
                 if (result == null)
@@ -118,7 +118,7 @@ namespace SmartCampus.API.Controllers
                     return BadRequest(new { message = "UserId and Token are required" });
                 }
                 
-                await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
+            await _authService.VerifyEmailAsync(verifyDto.UserId, verifyDto.Token);
                 
                 Console.WriteLine($"✅ Email verification successful for user {verifyDto.UserId}");
                 
@@ -170,9 +170,9 @@ namespace SmartCampus.API.Controllers
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
             try
-            {
-                await _authService.ForgotPasswordAsync(dto.Email);
-                return Ok(new { message = "If user exists, reset link sent" });
+        {
+            await _authService.ForgotPasswordAsync(dto.Email);
+            return Ok(new { message = "If user exists, reset link sent" });
             }
             catch (Exception ex)
             {
@@ -196,12 +196,12 @@ namespace SmartCampus.API.Controllers
                     return BadRequest(new { message = "Email, token, and new password are required" });
                 }
 
-                if (dto.NewPassword != dto.ConfirmPassword)
+            if (dto.NewPassword != dto.ConfirmPassword)
                 {
                     return BadRequest(new { message = "Şifreler eşleşmiyor" });
                 }
 
-                await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
+            await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
                 return Ok(new { message = "Şifre başarıyla sıfırlandı" });
             }
             catch (Exception ex)

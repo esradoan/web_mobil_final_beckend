@@ -21,4 +21,8 @@
 **/.env.*.local
 **/appsettings.Development.json
 **/appsettings.Local.json
+**/SmartCampus.Tests
+**/*Tests.csproj
+**/*.Tests.*
+**/SmartCampus.sln
 
