@@ -60,13 +60,6 @@ builder.Services.AddCors(options =>
                     // URL'i normalize et (trailing slash'i kaldır)
                     trimmedUrl = trimmedUrl.TrimEnd('/');
                     
-                    // Eğer protocol yoksa (sadece domain), https:// ekle
-                    if (!trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
-                        !trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                    {
-                        trimmedUrl = $"https://{trimmedUrl}";
-                    }
-                    
                     if (!allowedOrigins.Contains(trimmedUrl))
                     {
                         allowedOrigins.Add(trimmedUrl);
@@ -100,12 +93,6 @@ builder.Services.AddCors(options =>
         if (!string.IsNullOrEmpty(railwayFrontendUrl))
         {
             var trimmedUrl = railwayFrontendUrl.Trim().TrimEnd('/');
-            // Eğer protocol yoksa https:// ekle
-            if (!trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
-                !trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                trimmedUrl = $"https://{trimmedUrl}";
-            }
             if (!allowedOrigins.Contains(trimmedUrl))
             {
                 allowedOrigins.Add(trimmedUrl);
@@ -117,12 +104,6 @@ builder.Services.AddCors(options =>
         if (!string.IsNullOrEmpty(configFrontendUrl))
         {
             var trimmedUrl = configFrontendUrl.Trim().TrimEnd('/');
-            // Eğer protocol yoksa https:// ekle (production için)
-            if (!trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
-                !trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                trimmedUrl = builder.Environment.IsProduction() ? $"https://{trimmedUrl}" : $"http://{trimmedUrl}";
-            }
             if (!allowedOrigins.Contains(trimmedUrl))
             {
                 allowedOrigins.Add(trimmedUrl);
@@ -296,6 +277,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<SmartCampus.Business.Valida
 
 // Email Service: Use SMTPEmailService if configured, otherwise fallback to MockEmailService
 // Öncelik: Environment variables > appsettings.json
+Console.WriteLine("\n📧 SMTP Configuration Check:");
 var smtpHost = Environment.GetEnvironmentVariable("SmtpSettings__Host") ?? builder.Configuration["SmtpSettings:Host"];
 var smtpPort = Environment.GetEnvironmentVariable("SmtpSettings__Port") ?? builder.Configuration["SmtpSettings:Port"] ?? "587";
 var smtpUsername = Environment.GetEnvironmentVariable("SmtpSettings__Username") ?? builder.Configuration["SmtpSettings:Username"];
@@ -303,6 +285,14 @@ var smtpPassword = Environment.GetEnvironmentVariable("SmtpSettings__Password") 
 var smtpFromEmail = Environment.GetEnvironmentVariable("SmtpSettings__FromEmail") ?? builder.Configuration["SmtpSettings:FromEmail"];
 var smtpFromName = Environment.GetEnvironmentVariable("SmtpSettings__FromName") ?? builder.Configuration["SmtpSettings:FromName"] ?? "Smart Campus";
 var smtpEnableSsl = Environment.GetEnvironmentVariable("SmtpSettings__EnableSsl") ?? builder.Configuration["SmtpSettings:EnableSsl"] ?? "true";
+
+Console.WriteLine($"   SmtpSettings__Host: {(string.IsNullOrEmpty(smtpHost) ? "❌ NOT SET" : $"✅ {smtpHost}")}");
+Console.WriteLine($"   SmtpSettings__Port: {smtpPort}");
+Console.WriteLine($"   SmtpSettings__Username: {(string.IsNullOrEmpty(smtpUsername) ? "❌ NOT SET" : $"✅ {smtpUsername}")}");
+Console.WriteLine($"   SmtpSettings__Password: {(string.IsNullOrEmpty(smtpPassword) ? "❌ NOT SET" : "✅ SET")}");
+Console.WriteLine($"   SmtpSettings__FromEmail: {(string.IsNullOrEmpty(smtpFromEmail) ? "⚠️ Will use Username" : $"✅ {smtpFromEmail}")}");
+Console.WriteLine($"   SmtpSettings__FromName: {smtpFromName}");
+Console.WriteLine($"   SmtpSettings__EnableSsl: {smtpEnableSsl}");
 
 // SMTP settings'i configuration'a ekle (SMTPEmailService kullanacak)
 if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUsername) && !string.IsNullOrEmpty(smtpPassword))
@@ -318,13 +308,17 @@ if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUsername) && !s
     
     // Use real SMTP email service
     builder.Services.AddScoped<IEmailService, SMTPEmailService>();
-    Console.WriteLine($"✅ SMTP Email Service configured - Host: {smtpHost}, Port: {smtpPort}, From: {smtpFromEmail ?? smtpUsername}");
+    Console.WriteLine($"\n✅ SMTP Email Service configured and will be used");
+    Console.WriteLine($"   Host: {smtpHost}:{smtpPort}");
+    Console.WriteLine($"   From: {smtpFromEmail ?? smtpUsername} ({smtpFromName})");
 }
 else
 {
     // Fallback to mock email service if SMTP not configured
     builder.Services.AddScoped<IEmailService, MockEmailService>();
-    Console.WriteLine("⚠️ MockEmailService will be used - SMTP not fully configured");
+    Console.WriteLine($"\n⚠️ WARNING: MockEmailService will be used - SMTP not fully configured!");
+    Console.WriteLine($"   Missing: {(string.IsNullOrEmpty(smtpHost) ? "Host, " : "")}{(string.IsNullOrEmpty(smtpUsername) ? "Username, " : "")}{(string.IsNullOrEmpty(smtpPassword) ? "Password" : "")}");
+    Console.WriteLine($"   Emails will NOT be sent! Please configure SMTP settings in Railway environment variables.");
 }
 
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -557,24 +551,6 @@ if (!app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Health check endpoint
-app.MapGet("/", () => new { 
-    status = "ok", 
-    message = "Smart Campus API is running",
-    timestamp = DateTime.UtcNow 
-});
-
-// API base path
-app.MapGet("/api", () => new { 
-    status = "ok", 
-    message = "Smart Campus API",
-    version = "v1",
-    endpoints = new {
-        auth = "/api/v1/auth",
-        users = "/api/v1/users"
-    }
-});
 
 app.MapControllers();
 
