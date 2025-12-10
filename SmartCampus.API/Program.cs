@@ -114,85 +114,93 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configure MySQL Context
-// Önce ConnectionStrings__DefaultConnection environment variable'ını kontrol et
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var connectionStringSource = "ConnectionStrings__DefaultConnection";
+// Öncelik sırası: 1) MYSQL* environment variables, 2) MYSQL_URL, 3) ConnectionStrings__DefaultConnection (appsettings.json)
+var connectionString = (string?)null;
+var connectionStringSource = "";
 
-// Eğer connection string yoksa, Railway'nin otomatik MySQL variable'larını kullan
+// Önce Railway'nin otomatik MySQL variable'larını kontrol et (en güvenilir)
+var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
+var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
+var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
+var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
+
+// Debug: Environment variables'ları logla
+Console.WriteLine($"\n🔍 MySQL Environment Variables Check:");
+Console.WriteLine($"   MYSQLHOST: {(string.IsNullOrEmpty(mysqlHost) ? "NOT SET" : mysqlHost)}");
+Console.WriteLine($"   MYSQLUSER: {(string.IsNullOrEmpty(mysqlUser) ? "NOT SET" : mysqlUser)}");
+Console.WriteLine($"   MYSQLPASSWORD: {(string.IsNullOrEmpty(mysqlPassword) ? "NOT SET" : "***SET***")}");
+Console.WriteLine($"   MYSQLDATABASE: {(string.IsNullOrEmpty(mysqlDatabase) ? "NOT SET" : mysqlDatabase)}");
+Console.WriteLine($"   MYSQLPORT: {mysqlPort}");
+
+// Öncelik 1: Ayrı ayrı MYSQL* variables kullan (en güvenilir)
+if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+{
+    // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
+    if (string.IsNullOrEmpty(mysqlDatabase))
+    {
+        mysqlDatabase = "railway";
+        Console.WriteLine($"   ⚠️ MYSQLDATABASE not set, using default: railway");
+    }
+    
+    // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
+    // Railway internal network için SSL gerekmez
+    connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
+    connectionStringSource = "MYSQL* variables";
+    Console.WriteLine($"   ✅ Using MYSQL* variables to build connection string");
+}
+// Öncelik 2: MYSQL_URL variable'ını kontrol et (fallback)
+else
+{
+    var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
+    Console.WriteLine($"   MYSQL_URL: {(string.IsNullOrEmpty(mysqlUrl) ? "NOT SET" : "SET (length: " + mysqlUrl.Length + ")")}");
+    
+    if (!string.IsNullOrEmpty(mysqlUrl))
+    {
+        // MYSQL_URL formatı: mysql://user:password@host:port/database
+        // Pomelo için Server=host;Database=database;User=user;Password=password;Port=port; formatına çevir
+        if (mysqlUrl.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var uri = new Uri(mysqlUrl);
+                var userInfo = uri.UserInfo.Split(':');
+                var user = userInfo.Length > 0 ? userInfo[0] : "";
+                var password = userInfo.Length > 1 ? userInfo[1] : "";
+                var host = uri.Host;
+                var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
+                var database = uri.AbsolutePath.TrimStart('/');
+                
+                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;";
+                connectionStringSource = "MYSQL_URL (parsed)";
+                Console.WriteLine($"   ✅ Successfully parsed MYSQL_URL");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"   ❌ Failed to parse MYSQL_URL: {ex.Message}");
+                // Parse başarısız olursa, connection string null kalır
+                connectionString = null;
+            }
+        }
+        else
+        {
+            // Zaten connection string formatındaysa direkt kullan
+            connectionString = mysqlUrl;
+            connectionStringSource = "MYSQL_URL";
+            Console.WriteLine($"   ✅ Using MYSQL_URL directly (not mysql:// format)");
+        }
+    }
+}
+
+// Öncelik 3: ConnectionStrings__DefaultConnection (appsettings.json veya environment variable) - fallback
 if (string.IsNullOrEmpty(connectionString))
 {
-    // Önce ayrı ayrı MYSQL* variables'ları kontrol et (daha güvenilir)
-    var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
-    var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
-    var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
-    var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
-    var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
-    
-    // Debug: Environment variables'ları logla
-    Console.WriteLine($"\n🔍 MySQL Environment Variables Check:");
-    Console.WriteLine($"   MYSQLHOST: {(string.IsNullOrEmpty(mysqlHost) ? "NOT SET" : mysqlHost)}");
-    Console.WriteLine($"   MYSQLUSER: {(string.IsNullOrEmpty(mysqlUser) ? "NOT SET" : mysqlUser)}");
-    Console.WriteLine($"   MYSQLPASSWORD: {(string.IsNullOrEmpty(mysqlPassword) ? "NOT SET" : "***SET***")}");
-    Console.WriteLine($"   MYSQLDATABASE: {(string.IsNullOrEmpty(mysqlDatabase) ? "NOT SET" : mysqlDatabase)}");
-    Console.WriteLine($"   MYSQLPORT: {mysqlPort}");
-    
-    // Öncelik 1: Ayrı ayrı MYSQL* variables kullan (daha güvenilir)
-    if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+    var configConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrEmpty(configConnectionString) && configConnectionString.Trim() != "")
     {
-        // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
-        if (string.IsNullOrEmpty(mysqlDatabase))
-        {
-            mysqlDatabase = "railway";
-            Console.WriteLine($"   ⚠️ MYSQLDATABASE not set, using default: railway");
-        }
-        
-        // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
-        // Railway internal network için SSL gerekmez
-        connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
-        connectionStringSource = "MYSQL* variables";
-        Console.WriteLine($"   ✅ Using MYSQL* variables to build connection string");
-    }
-    // Öncelik 2: MYSQL_URL variable'ını kontrol et (fallback)
-    else
-    {
-        var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
-        Console.WriteLine($"   MYSQL_URL: {(string.IsNullOrEmpty(mysqlUrl) ? "NOT SET" : "SET (length: " + mysqlUrl.Length + ")")}");
-        
-        if (!string.IsNullOrEmpty(mysqlUrl))
-        {
-            // MYSQL_URL formatı: mysql://user:password@host:port/database
-            // Pomelo için Server=host;Database=database;User=user;Password=password;Port=port; formatına çevir
-            if (mysqlUrl.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var uri = new Uri(mysqlUrl);
-                    var userInfo = uri.UserInfo.Split(':');
-                    var user = userInfo.Length > 0 ? userInfo[0] : "";
-                    var password = userInfo.Length > 1 ? userInfo[1] : "";
-                    var host = uri.Host;
-                    var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
-                    var database = uri.AbsolutePath.TrimStart('/');
-                    
-                    connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;";
-                    connectionStringSource = "MYSQL_URL (parsed)";
-                    Console.WriteLine($"   ✅ Successfully parsed MYSQL_URL");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"   ❌ Failed to parse MYSQL_URL: {ex.Message}");
-                    // Parse başarısız olursa, connection string null kalır
-                    connectionString = null;
-                }
-            }
-            else
-            {
-                // Zaten connection string formatındaysa direkt kullan
-                connectionString = mysqlUrl;
-                connectionStringSource = "MYSQL_URL";
-                Console.WriteLine($"   ✅ Using MYSQL_URL directly (not mysql:// format)");
-            }
-        }
+        connectionString = configConnectionString;
+        connectionStringSource = "ConnectionStrings__DefaultConnection (appsettings.json)";
+        Console.WriteLine($"   ⚠️ Using connection string from appsettings.json (fallback)");
     }
 }
 
@@ -529,13 +537,19 @@ app.MapControllers();
 // Railway ve diğer platformlar için PORT environment variable'ını kullan
 // Yerel geliştirmede PORT yoksa launchSettings.json kullanılır
 var port = Environment.GetEnvironmentVariable("PORT");
+Console.WriteLine($"\n🔌 PORT Environment Variable: {(string.IsNullOrEmpty(port) ? "NOT SET" : port)}");
+
 if (!string.IsNullOrEmpty(port))
 {
     // Production (Railway, Heroku, vb.) - PORT environment variable set edilmiş
-    app.Run($"http://0.0.0.0:{port}");
+    var listenUrl = $"http://0.0.0.0:{port}";
+    Console.WriteLine($"✅ Starting application on: {listenUrl}");
+    Console.WriteLine($"🌐 Application will be accessible on Railway's domain");
+    app.Run(listenUrl);
 }
 else
 {
     // Development - launchSettings.json kullanılır
+    Console.WriteLine($"⚠️ PORT not set, using launchSettings.json (development mode)");
     app.Run();
 }
