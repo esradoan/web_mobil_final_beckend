@@ -157,185 +157,76 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configure MySQL Context
-// Öncelik sırası: 1) MYSQL* environment variables, 2) MYSQL_URL, 3) ConnectionStrings__DefaultConnection (appsettings.json)
+// Öncelik: 1) ConnectionStrings__DefaultConnection, 2) MYSQL* environment variables
 var connectionString = (string?)null;
 var connectionStringSource = "";
 
-// Önce Railway'nin otomatik MySQL variable'larını kontrol et (en güvenilir)
-var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
-var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
-var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
-var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
-var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
-
-// Debug: Environment variables'ları logla
-Console.WriteLine($"\n🔍 MySQL Environment Variables Check:");
-Console.WriteLine($"   MYSQLHOST: {(string.IsNullOrEmpty(mysqlHost) ? "NOT SET" : mysqlHost)}");
-Console.WriteLine($"   MYSQLUSER: {(string.IsNullOrEmpty(mysqlUser) ? "NOT SET" : mysqlUser)}");
-Console.WriteLine($"   MYSQLPASSWORD: {(string.IsNullOrEmpty(mysqlPassword) ? "NOT SET" : "***SET***")}");
-Console.WriteLine($"   MYSQLDATABASE: {(string.IsNullOrEmpty(mysqlDatabase) ? "NOT SET" : mysqlDatabase)}");
-Console.WriteLine($"   MYSQLPORT: {mysqlPort}");
-
-// Öncelik 1: Ayrı ayrı MYSQL* variables kullan (en güvenilir)
-if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+// Öncelik 1: ConnectionStrings__DefaultConnection environment variable
+var configConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(configConnectionString) && configConnectionString.Trim() != "")
 {
-    // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
-    if (string.IsNullOrEmpty(mysqlDatabase))
+    connectionString = configConnectionString;
+    connectionStringSource = "ConnectionStrings__DefaultConnection";
+    Console.WriteLine($"✅ Using connection string from ConnectionStrings__DefaultConnection");
+    
+    // AllowPublicKeyRetrieval=True ve SslMode=Required ekle (yoksa)
+    if (!connectionString.Contains("AllowPublicKeyRetrieval=", StringComparison.OrdinalIgnoreCase))
     {
-        mysqlDatabase = "railway";
-        Console.WriteLine($"   ⚠️ MYSQLDATABASE not set, using default: railway");
+        var separator = connectionString.EndsWith(";") ? "" : ";";
+        connectionString = $"{connectionString}{separator}AllowPublicKeyRetrieval=True;";
     }
     
-    // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
-    // Railway internal network için SSL gerekmez
-    // Database name validation - boş olamaz
-    if (string.IsNullOrWhiteSpace(mysqlDatabase))
+    if (!connectionString.Contains("SslMode=", StringComparison.OrdinalIgnoreCase))
     {
-        mysqlDatabase = "railway";
-        Console.WriteLine($"   ⚠️ MYSQLDATABASE was empty, using default: railway");
-    }
-    
-    // MySQL 8.0+ için AllowPublicKeyRetrieval=True gerekli (caching_sha2_password authentication için)
-    // Pomelo.EntityFrameworkCore.MySql için "User" kullanılır (User ID değil)
-    connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;AllowPublicKeyRetrieval=True;";
-    connectionStringSource = "MYSQL* variables";
-    Console.WriteLine($"   ✅ Using MYSQL* variables to build connection string");
-    Console.WriteLine($"   📊 Database name: {mysqlDatabase}");
-    Console.WriteLine($"   📊 Connection string preview: Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password=***;Port={mysqlPort};AllowPublicKeyRetrieval=True;");
-}
-// Öncelik 2: MYSQL_URL variable'ını kontrol et (fallback)
-else
-{
-    var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
-    Console.WriteLine($"   MYSQL_URL: {(string.IsNullOrEmpty(mysqlUrl) ? "NOT SET" : "SET (length: " + mysqlUrl.Length + ")")}");
-    
-    if (!string.IsNullOrEmpty(mysqlUrl))
-    {
-        // MYSQL_URL formatı: mysql://user:password@host:port/database
-        // Pomelo için Server=host;Database=database;User=user;Password=password;Port=port; formatına çevir
-        if (mysqlUrl.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var uri = new Uri(mysqlUrl);
-                var userInfo = uri.UserInfo.Split(':');
-                var user = userInfo.Length > 0 ? userInfo[0] : "";
-                var password = userInfo.Length > 1 ? userInfo[1] : "";
-                var host = uri.Host;
-                var mysqlPortFromUrl = uri.Port > 0 ? uri.Port.ToString() : "3306";
-                var database = uri.AbsolutePath.TrimStart('/');
-                
-                // Database name validation - boş olamaz
-                if (string.IsNullOrWhiteSpace(database))
-                {
-                    // MYSQLDATABASE variable'ını kontrol et
-                    database = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
-                    Console.WriteLine($"   ⚠️ Database name not found in MYSQL_URL, using: {database}");
-                }
-                
-                // MySQL 8.0+ için AllowPublicKeyRetrieval=True gerekli (caching_sha2_password authentication için)
-                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={mysqlPortFromUrl};SslMode=None;AllowPublicKeyRetrieval=True;";
-                connectionStringSource = "MYSQL_URL (parsed)";
-                Console.WriteLine($"   ✅ Successfully parsed MYSQL_URL");
-                Console.WriteLine($"   📊 Database name: {database}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"   ❌ Failed to parse MYSQL_URL: {ex.Message}");
-                // Parse başarısız olursa, connection string null kalır
-                connectionString = null;
-            }
-        }
-        else
-        {
-            // Zaten connection string formatındaysa direkt kullan
-            // Ama database name kontrolü yap
-            if (!mysqlUrl.Contains("Database=", StringComparison.OrdinalIgnoreCase) && 
-                !mysqlUrl.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
-            {
-                // Database parametresi yoksa ekle
-                var database = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
-                var separator = mysqlUrl.EndsWith(";") ? "" : ";";
-                mysqlUrl = $"{mysqlUrl}{separator}Database={database};";
-                Console.WriteLine($"   ⚠️ Database parameter not found in MYSQL_URL, added: Database={database}");
-            }
-            
-            // AllowPublicKeyRetrieval=True ekle (yoksa)
-            if (!mysqlUrl.Contains("AllowPublicKeyRetrieval=", StringComparison.OrdinalIgnoreCase))
-            {
-                var separator = mysqlUrl.EndsWith(";") ? "" : ";";
-                mysqlUrl = $"{mysqlUrl}{separator}AllowPublicKeyRetrieval=True;";
-                Console.WriteLine($"   ⚠️ AllowPublicKeyRetrieval not found in MYSQL_URL, added");
-            }
-            
-            connectionString = mysqlUrl;
-            connectionStringSource = "MYSQL_URL";
-            Console.WriteLine($"   ✅ Using MYSQL_URL directly (not mysql:// format)");
-        }
+        var separator = connectionString.EndsWith(";") ? "" : ";";
+        connectionString = $"{connectionString}{separator}SslMode=Required;";
     }
 }
 
-// Öncelik 3: ConnectionStrings__DefaultConnection (appsettings.json veya environment variable) - fallback
+// Öncelik 2: MYSQL* environment variables (fallback)
 if (string.IsNullOrEmpty(connectionString))
 {
-    var configConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    if (!string.IsNullOrEmpty(configConnectionString) && configConnectionString.Trim() != "")
+    var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
+    var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+    var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
+    var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
+    var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
+    
+    if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
     {
-        connectionString = configConnectionString;
-        connectionStringSource = "ConnectionStrings__DefaultConnection (appsettings.json)";
-        Console.WriteLine($"   ⚠️ Using connection string from appsettings.json (fallback)");
-        
-        // AllowPublicKeyRetrieval=True ekle (yoksa ve Production değilse)
-        // Production'da Railway MySQL kullanılmalı, appsettings.json fallback olmamalı
-        if (!connectionString.Contains("AllowPublicKeyRetrieval=", StringComparison.OrdinalIgnoreCase))
-        {
-            var separator = connectionString.EndsWith(";") ? "" : ";";
-            connectionString = $"{connectionString}{separator}AllowPublicKeyRetrieval=True;";
-            Console.WriteLine($"   ⚠️ Added AllowPublicKeyRetrieval=True to connection string");
-        }
-        
-        // Database name validation
-        if (!connectionString.Contains("Database=", StringComparison.OrdinalIgnoreCase) && 
-            !connectionString.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
-        {
-            var database = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
-            var separator = connectionString.EndsWith(";") ? "" : ";";
-            connectionString = $"{connectionString}{separator}Database={database};";
-            Console.WriteLine($"   ⚠️ Database parameter not found, added: Database={database}");
-        }
+        connectionString = $"Server={mysqlHost};Port={mysqlPort};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};AllowPublicKeyRetrieval=True;SslMode=Required;";
+        connectionStringSource = "MYSQL* variables";
+        Console.WriteLine($"✅ Using connection string from MYSQL* environment variables");
     }
 }
 
-// Connection string validation ve detaylı logging
+// Connection string validation
 if (string.IsNullOrEmpty(connectionString))
 {
-    var availableVars = new List<string>();
-    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLHOST"))) availableVars.Add("MYSQLHOST");
-    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLUSER"))) availableVars.Add("MYSQLUSER");
-    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLPASSWORD"))) availableVars.Add("MYSQLPASSWORD");
-    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MYSQLDATABASE"))) availableVars.Add("MYSQLDATABASE");
-    
     throw new InvalidOperationException(
-        $"Connection string is not configured. " +
-        $"Please set either 'ConnectionStrings__DefaultConnection' environment variable " +
-        $"or Railway MySQL variables (MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE). " +
-        $"Available variables: {(availableVars.Any() ? string.Join(", ", availableVars) : "none")}"
+        "Connection string is not configured. " +
+        "Please set either 'ConnectionStrings__DefaultConnection' environment variable " +
+        "or Railway MySQL variables (MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE)."
     );
 }
 
-// Connection string'de Database parametresinin varlığını kontrol et
-if (!connectionString.Contains("Database=", StringComparison.OrdinalIgnoreCase) && 
-    !connectionString.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+// Log connection string (password masked)
+var maskedConnectionString = connectionString.Contains("Password=") 
+    ? connectionString.Substring(0, connectionString.IndexOf("Password=") + 9) + "***;" 
+    : connectionString;
+Console.WriteLine($"\n🔌 Connection String Configuration:");
+Console.WriteLine($"   Source: {connectionStringSource}");
+Console.WriteLine($"   Connection String: {maskedConnectionString}");
+
+// Extract and log database name
+var dbNameMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+if (dbNameMatch.Success)
 {
-    throw new InvalidOperationException(
-        $"Connection string does not contain Database parameter. " +
-        $"Source: {connectionStringSource}. " +
-        $"Connection string (masked): {connectionString.Replace("Password=", "Password=***").Substring(0, Math.Min(200, connectionString.Length))}"
-    );
+    Console.WriteLine($"   Database: {dbNameMatch.Groups[1].Value}");
 }
 
 builder.Services.AddDbContext<CampusDbContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 23)), 
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)), 
         mysqlOptions => mysqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
@@ -536,7 +427,7 @@ if (!skipMigrations)
                 logger.LogInformation($"📊 Database connection string: {maskedDbConn}");
             }
             
-            // Check if database exists and can connect
+            // Retry mechanism for database connection
             var maxRetries = 3;
             var retryDelay = TimeSpan.FromSeconds(5);
             var connected = false;
@@ -554,23 +445,7 @@ if (!skipMigrations)
                 }
                 catch (Exception connectEx)
                 {
-                    logger.LogWarning($"⚠️ Connection attempt {i + 1}/{maxRetries} failed");
-                    logger.LogWarning($"   Error: {connectEx.Message}");
-                    
-                    // Inner exception varsa onu da logla
-                    if (connectEx.InnerException != null)
-                    {
-                        logger.LogWarning($"   Inner: {connectEx.InnerException.Message}");
-                    }
-                    
-                    // Database ile ilgili özel hata mesajları
-                    if (connectEx.Message.Contains("Unknown database", StringComparison.OrdinalIgnoreCase) ||
-                        connectEx.Message.Contains("database ''", StringComparison.OrdinalIgnoreCase))
-                    {
-                        logger.LogError("❌ Database does not exist or database name is empty!");
-                        logger.LogError("💡 Solution: Check MYSQLDATABASE variable in Railway MySQL service");
-                        logger.LogError("💡 Or create the database manually in MySQL");
-                    }
+                    logger.LogWarning($"⚠️ Connection attempt {i + 1}/{maxRetries} failed: {connectEx.Message}");
                     
                     if (i < maxRetries - 1)
                     {
@@ -579,7 +454,8 @@ if (!skipMigrations)
                     }
                     else
                     {
-                        throw;
+                        logger.LogError("❌ Cannot connect to database after {MaxRetries} attempts.", maxRetries);
+                        throw new Exception("Cannot connect to DB", connectEx);
                     }
                 }
             }
@@ -587,14 +463,11 @@ if (!skipMigrations)
             if (connected)
             {
                 logger.LogInformation("🔄 Checking for pending migrations...");
-                
-                // Get pending migrations
                 var pendingMigrations = context.Database.GetPendingMigrations().ToList();
                 if (pendingMigrations.Any())
                 {
                     logger.LogInformation($"📦 Found {pendingMigrations.Count()} pending migration(s): {string.Join(", ", pendingMigrations)}");
                     logger.LogInformation("🚀 Applying migrations...");
-                    // Apply pending migrations
                     context.Database.Migrate();
                     logger.LogInformation("✅ Database migrations applied successfully.");
                 }
@@ -603,45 +476,18 @@ if (!skipMigrations)
                     logger.LogInformation("✅ No pending migrations. Database is up to date.");
                 }
             }
-            else
-            {
-                logger.LogError("❌ Cannot connect to database after {MaxRetries} attempts.", maxRetries);
-                logger.LogError("💡 Please check:");
-                logger.LogError("   1. MySQL service is running on Railway");
-                logger.LogError("   2. Connection string is correct (ConnectionStrings__DefaultConnection or MYSQL* variables)");
-                logger.LogError("   3. Database name exists (MYSQLDATABASE variable)");
-                logger.LogError("   4. Network connectivity between services");
-                
-                // In Production, fail fast if database connection fails
-                if (app.Environment.IsProduction())
-                {
-                    throw new Exception("Cannot connect to database in Production. Application cannot start.");
-                }
-            }
         }
         catch (Exception ex)
         {
-            // In Production, migration failures should prevent app startup
             if (app.Environment.IsProduction())
             {
                 logger.LogError(ex, "❌ Critical error: Failed to migrate database in Production. Application cannot start.");
-                logger.LogError("💡 To skip migrations temporarily, set SKIP_MIGRATIONS=true environment variable");
-                throw; // Fail fast in Production
+                throw;
             }
             else
             {
-                // In Development, allow app to start even if migration fails
-                if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
-                {
-                    logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
-                    logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
-                    logger.LogInformation("✅ Application will continue running...");
-                }
-                else
-                {
-                    logger.LogError(ex, "❌ An error occurred while migrating the database.");
-                    logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
-                }
+                logger.LogError(ex, "❌ An error occurred while migrating the database.");
+                logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
             }
         }
     }
