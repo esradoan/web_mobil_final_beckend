@@ -1,5 +1,6 @@
 using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -64,7 +65,15 @@ namespace SmartCampus.Business.Services
                  // thrown if enforced
             }
 
-            await LogActivityAsync(user.Id, "Login", "User logged in via password.");
+            // Log activity (ignore errors if table doesn't exist yet)
+            try
+            {
+                await LogActivityAsync(user.Id, "Login", "User logged in via password.");
+            }
+            catch
+            {
+                // Ignore logging errors - table might not exist yet
+            }
 
             return await GenerateTokensAsync(user, loginDto.RememberMe);
         }
@@ -78,12 +87,34 @@ namespace SmartCampus.Business.Services
                 throw new Exception("User with this email already exists");
             }
 
-            // 2. Map DTO to Entity
+            // 2. Validate Role-Specific Requirements BEFORE creating user
+            if (registerDto.Role == UserRole.Student)
+            {
+                if (string.IsNullOrEmpty(registerDto.StudentNumber) || registerDto.DepartmentId == null)
+                    throw new Exception("Student Number and Department are required for Students.");
+
+                // Verify Department exists
+                var department = await _unitOfWork.Repository<Department>().GetByIdAsync(registerDto.DepartmentId.Value);
+                if (department == null)
+                    throw new Exception($"Department with ID {registerDto.DepartmentId.Value} does not exist.");
+            }
+            else if (registerDto.Role == UserRole.Faculty)
+            {
+                if (string.IsNullOrEmpty(registerDto.EmployeeNumber) || registerDto.DepartmentId == null)
+                    throw new Exception("Employee Number and Department are required for Faculty.");
+
+                // Verify Department exists
+                var department = await _unitOfWork.Repository<Department>().GetByIdAsync(registerDto.DepartmentId.Value);
+                if (department == null)
+                    throw new Exception($"Department with ID {registerDto.DepartmentId.Value} does not exist.");
+            }
+
+            // 3. Map DTO to Entity
             var user = _mapper.Map<User>(registerDto);
             user.UserName = registerDto.Email; // Identity requires UserName
             user.CreatedAt = DateTime.UtcNow;
 
-            // 3. Create User (Identity handles Hashing and Saving)
+            // 4. Create User (Identity handles Hashing and Saving)
             var result = await _userManager.CreateAsync(user, registerDto.Password);
 
             if (!result.Succeeded)
@@ -92,37 +123,46 @@ namespace SmartCampus.Business.Services
                 throw new Exception($"Registration failed: {errors}");
             }
 
-            // 4. Create Role-Specific Entry
-            if (registerDto.Role == UserRole.Student)
+            // 5. Create Role-Specific Entry (now we know everything is valid)
+            try
             {
-                if (string.IsNullOrEmpty(registerDto.StudentNumber) || registerDto.DepartmentId == null)
-                    throw new Exception("Student Number and Department are required for Students.");
-
-                var student = new Student
+                if (registerDto.Role == UserRole.Student)
                 {
-                    UserId = user.Id,
-                    StudentNumber = registerDto.StudentNumber,
-                    DepartmentId = registerDto.DepartmentId.Value
-                };
-                await _unitOfWork.Repository<Student>().AddAsync(student);
+                    var student = new Student
+                    {
+                        UserId = user.Id,
+                        StudentNumber = registerDto.StudentNumber!,
+                        DepartmentId = registerDto.DepartmentId!.Value
+                    };
+                    await _unitOfWork.Repository<Student>().AddAsync(student);
+                }
+                else if (registerDto.Role == UserRole.Faculty)
+                {
+                    var faculty = new Faculty
+                    {
+                        UserId = user.Id,
+                        EmployeeNumber = registerDto.EmployeeNumber!,
+                        DepartmentId = registerDto.DepartmentId!.Value,
+                        Title = "Instructor" 
+                    };
+                    await _unitOfWork.Repository<Faculty>().AddAsync(faculty);
+                }
+
+                await _unitOfWork.CompleteAsync();
             }
-            else if (registerDto.Role == UserRole.Faculty)
+            catch (Exception ex)
             {
-                if (registerDto.DepartmentId == null) 
-                     if (string.IsNullOrEmpty(registerDto.EmployeeNumber) || registerDto.DepartmentId == null)
-                        throw new Exception("Employee Number and Department are required for Faculty.");
-
-                var faculty = new Faculty
+                // Rollback: Delete the user if Student/Faculty creation fails
+                try
                 {
-                    UserId = user.Id,
-                    EmployeeNumber = registerDto.EmployeeNumber,
-                    DepartmentId = registerDto.DepartmentId.Value,
-                    Title = "Instructor" 
-                };
-                await _unitOfWork.Repository<Faculty>().AddAsync(faculty);
+                    await _userManager.DeleteAsync(user);
+                }
+                catch
+                {
+                    // Ignore deletion errors, log in production
+                }
+                throw new Exception($"Failed to create role-specific entry: {ex.Message}");
             }
-
-            await _unitOfWork.CompleteAsync();
 
             // 5. Generate Email Verification Token
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -183,10 +223,34 @@ namespace SmartCampus.Business.Services
 
         public async Task<TokenDto> RefreshTokenAsync(string refreshToken)
         {
-            var tokenRepo = _unitOfWork.Repository<RefreshToken>();
-            var storedToken = (await tokenRepo.FindAsync(t => t.Token == refreshToken)).FirstOrDefault();
+            if (string.IsNullOrEmpty(refreshToken) || refreshToken == "undefined" || refreshToken.Trim() == "")
+                throw new Exception("Refresh token is required");
 
-            if (storedToken == null) throw new Exception("Invalid refresh token");
+            // Trim token to handle any whitespace issues
+            refreshToken = refreshToken.Trim();
+
+            var tokenRepo = _unitOfWork.Repository<RefreshToken>();
+            
+            // Get all tokens for the user and filter in memory (for debugging)
+            // In production, you might want to add UserId to the query
+            var allTokens = await tokenRepo.FindAsync(t => t.Token == refreshToken);
+            var storedToken = allTokens.FirstOrDefault();
+
+            if (storedToken == null) 
+            {
+                // For debugging: Get all recent tokens to see what's in the database
+                var recentTokens = await tokenRepo.GetAllAsync();
+                var recentTokenList = recentTokens.Take(5).Select(t => new { 
+                    Id = t.Id, 
+                    UserId = t.UserId, 
+                    TokenPreview = t.Token.Substring(0, Math.Min(20, t.Token.Length)),
+                    ExpiryDate = t.ExpiryDate,
+                    IsRevoked = t.IsRevoked
+                }).ToList();
+                
+                // Log for debugging - in production, don't expose this
+                throw new Exception($"Invalid refresh token. Token not found in database. Looking for: {refreshToken.Substring(0, Math.Min(20, refreshToken.Length))}...");
+            }
             if (storedToken.ExpiryDate < DateTime.UtcNow) throw new Exception("Refresh token expired");
             if (storedToken.IsRevoked) throw new Exception("Refresh token revoked");
 
@@ -222,12 +286,16 @@ namespace SmartCampus.Business.Services
         {
             try 
             {
+                var now = DateTime.UtcNow;
                 var log = new UserActivityLog
                 {
                     UserId = userId,
                     Action = action,
                     Description = description,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = now,
+                    CreatedAt = now,  // BaseEntity property
+                    UpdatedAt = now,   // BaseEntity property - must be set for NOT NULL column
+                    IsDeleted = false  // BaseEntity property
                     // IpAddress could be passed down or retrieved if IHttpContextAccessor was injected
                 };
                 await _unitOfWork.Repository<UserActivityLog>().AddAsync(log);
@@ -268,13 +336,16 @@ namespace SmartCampus.Business.Services
             
             // Save Refresh Token - extend expiry if RememberMe is checked
             var refreshTokenExpiryDays = rememberMe ? 30 : 7;
+            var now = DateTime.UtcNow;
             var refreshTokenEntity = new RefreshToken
             {
                 Token = refreshToken,
                 UserId = user.Id,
-                ExpiryDate = DateTime.UtcNow.AddDays(refreshTokenExpiryDays),
+                ExpiryDate = now.AddDays(refreshTokenExpiryDays),
                 IsRevoked = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = now,
+                UpdatedAt = now,  // BaseEntity property - must be set for NOT NULL column
+                IsDeleted = false  // BaseEntity property
             };
             
             await _unitOfWork.Repository<RefreshToken>().AddAsync(refreshTokenEntity);

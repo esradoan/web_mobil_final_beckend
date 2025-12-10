@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
+using System;
 using System.Threading.Tasks;
 
 namespace SmartCampus.API.Controllers
@@ -19,15 +20,64 @@ namespace SmartCampus.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            var result = await _authService.RegisterAsync(registerDto);
-            return Ok(result);
+            try
+            {
+                var result = await _authService.RegisterAsync(registerDto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                // Return proper error response
+                return BadRequest(new { 
+                    message = ex.Message,
+                    error = "Registration failed"
+                });
+            }
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var result = await _authService.LoginAsync(loginDto);
-            return Ok(result);
+            try
+            {
+                if (loginDto == null)
+                {
+                    return BadRequest(new { message = "Login data is required" });
+                }
+
+                var result = await _authService.LoginAsync(loginDto);
+                
+                // Ensure tokens are present
+                if (result == null)
+                {
+                    return BadRequest(new { message = "Login failed: No result returned" });
+                }
+                
+                if (string.IsNullOrEmpty(result.AccessToken) || string.IsNullOrEmpty(result.RefreshToken))
+                {
+                    return BadRequest(new { 
+                        message = "Token generation failed",
+                        accessTokenPresent = !string.IsNullOrEmpty(result.AccessToken),
+                        refreshTokenPresent = !string.IsNullOrEmpty(result.RefreshToken)
+                    });
+                }
+                
+                // Return TokenDto with PascalCase properties
+                return Ok(new
+                {
+                    AccessToken = result.AccessToken,
+                    RefreshToken = result.RefreshToken,
+                    Expiration = result.Expiration
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { 
+                    message = ex.Message,
+                    error = "Login failed",
+                    detailed = ex.ToString() // For debugging - remove in production
+                });
+            }
         }
 
         [HttpPost("refresh")]

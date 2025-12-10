@@ -34,13 +34,34 @@ namespace SmartCampus.API.Middleware
         private static Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            
+            // Determine status code based on exception type
+            int statusCode = (int)HttpStatusCode.InternalServerError;
+            if (exception.Message.Contains("already exists") || exception.Message.Contains("duplicate"))
+            {
+                statusCode = (int)HttpStatusCode.BadRequest;
+            }
+            else if (exception.Message.Contains("not found") || exception.Message.Contains("does not exist"))
+            {
+                statusCode = (int)HttpStatusCode.NotFound;
+            }
+            
+            context.Response.StatusCode = statusCode;
+
+            // Get inner exception message if available (for Entity Framework errors)
+            string detailedMessage = exception.Message;
+            if (exception.InnerException != null)
+            {
+                detailedMessage += $" | Inner: {exception.InnerException.Message}";
+            }
 
             var response = new
             {
-                StatusCode = context.Response.StatusCode,
-                Message = "Internal Server Error from the custom middleware.",
-                Detailed = exception.Message // In production, hide this!
+                StatusCode = statusCode,
+                Message = statusCode == (int)HttpStatusCode.BadRequest 
+                    ? "Bad Request" 
+                    : "Internal Server Error from the custom middleware.",
+                Detailed = detailedMessage // In production, hide this!
             };
 
             return context.Response.WriteAsync(JsonSerializer.Serialize(response));
