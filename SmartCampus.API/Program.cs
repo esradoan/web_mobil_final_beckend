@@ -285,12 +285,12 @@ var allEnvVars = Environment.GetEnvironmentVariables();
 var smtpEnvVars = new List<string>();
 foreach (System.Collections.DictionaryEntry entry in allEnvVars)
 {
-    var key = entry.Key.ToString();
-    if (key != null && (key.Contains("Smtp", StringComparison.OrdinalIgnoreCase) || 
-                        key.Contains("SMTP", StringComparison.OrdinalIgnoreCase) ||
-                        key.Contains("Email", StringComparison.OrdinalIgnoreCase)))
+    var envKey = entry.Key?.ToString();
+    if (envKey != null && (envKey.Contains("Smtp", StringComparison.OrdinalIgnoreCase) || 
+                        envKey.Contains("SMTP", StringComparison.OrdinalIgnoreCase) ||
+                        envKey.Contains("Email", StringComparison.OrdinalIgnoreCase)))
     {
-        smtpEnvVars.Add(key);
+        smtpEnvVars.Add(envKey);
     }
 }
 
