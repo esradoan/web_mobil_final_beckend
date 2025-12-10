@@ -161,13 +161,36 @@ builder.Services.AddSwaggerGen(c =>
 var connectionString = (string?)null;
 var connectionStringSource = "";
 
+// MYSQL* environment variables (template replacement için)
+var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
+var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
+var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
+var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
+
 // Öncelik 1: ConnectionStrings__DefaultConnection environment variable
 var configConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrEmpty(configConnectionString) && configConnectionString.Trim() != "")
 {
     connectionString = configConnectionString;
     connectionStringSource = "ConnectionStrings__DefaultConnection";
-    Console.WriteLine($"✅ Using connection string from ConnectionStrings__DefaultConnection");
+    
+    // Template variables'ı replace et (${VAR_NAME} formatı)
+    if (connectionString.Contains("${"))
+    {
+        connectionString = connectionString
+            .Replace("${MYSQLHOST}", mysqlHost ?? "")
+            .Replace("${MYSQLPORT}", mysqlPort)
+            .Replace("${MYSQLUSER}", mysqlUser ?? "")
+            .Replace("${MYSQLPASSWORD}", mysqlPassword ?? "")
+            .Replace("${MYSQLDATABASE}", mysqlDatabase);
+        
+        Console.WriteLine($"✅ Using connection string from ConnectionStrings__DefaultConnection (with template replacement)");
+    }
+    else
+    {
+        Console.WriteLine($"✅ Using connection string from ConnectionStrings__DefaultConnection");
+    }
     
     // AllowPublicKeyRetrieval=True ve SslMode=Required ekle (yoksa)
     if (!connectionString.Contains("AllowPublicKeyRetrieval=", StringComparison.OrdinalIgnoreCase))
@@ -186,12 +209,6 @@ if (!string.IsNullOrEmpty(configConnectionString) && configConnectionString.Trim
 // Öncelik 2: MYSQL* environment variables (fallback)
 if (string.IsNullOrEmpty(connectionString))
 {
-    var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
-    var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
-    var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
-    var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
-    var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway";
-    
     if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
     {
         connectionString = $"Server={mysqlHost};Port={mysqlPort};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};AllowPublicKeyRetrieval=True;SslMode=Required;";
