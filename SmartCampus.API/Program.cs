@@ -131,8 +131,36 @@ if (string.IsNullOrEmpty(connectionString))
     var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
     if (!string.IsNullOrEmpty(mysqlUrl))
     {
-        connectionString = mysqlUrl;
-        connectionStringSource = "MYSQL_URL";
+        // MYSQL_URL formatı: mysql://user:password@host:port/database
+        // Pomelo için Server=host;Database=database;User=user;Password=password;Port=port; formatına çevir
+        if (mysqlUrl.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var uri = new Uri(mysqlUrl);
+                var userInfo = uri.UserInfo.Split(':');
+                var user = userInfo.Length > 0 ? userInfo[0] : "";
+                var password = userInfo.Length > 1 ? userInfo[1] : "";
+                var host = uri.Host;
+                var port = uri.Port > 0 ? uri.Port.ToString() : "3306";
+                var database = uri.AbsolutePath.TrimStart('/');
+                
+                connectionString = $"Server={host};Database={database};User={user};Password={password};Port={port};SslMode=None;";
+                connectionStringSource = "MYSQL_URL (parsed)";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to parse MYSQL_URL: {ex.Message}");
+                // Parse başarısız olursa, ayrı variables'ları kullan
+                connectionString = null;
+            }
+        }
+        else
+        {
+            // Zaten connection string formatındaysa direkt kullan
+            connectionString = mysqlUrl;
+            connectionStringSource = "MYSQL_URL";
+        }
     }
     else if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
     {
