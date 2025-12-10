@@ -278,6 +278,43 @@ builder.Services.AddValidatorsFromAssemblyContaining<SmartCampus.Business.Valida
 // Email Service: Use SMTPEmailService if configured, otherwise fallback to MockEmailService
 // Öncelik: Environment variables > appsettings.json
 Console.WriteLine("\n📧 SMTP Configuration Check:");
+Console.WriteLine("   Checking Environment Variables (Railway):");
+
+// Debug: Tüm SMTP ile ilgili environment variable'ları kontrol et
+var allEnvVars = Environment.GetEnvironmentVariables();
+var smtpEnvVars = new List<string>();
+foreach (System.Collections.DictionaryEntry entry in allEnvVars)
+{
+    var key = entry.Key.ToString();
+    if (key != null && (key.Contains("Smtp", StringComparison.OrdinalIgnoreCase) || 
+                        key.Contains("SMTP", StringComparison.OrdinalIgnoreCase) ||
+                        key.Contains("Email", StringComparison.OrdinalIgnoreCase)))
+    {
+        smtpEnvVars.Add(key);
+    }
+}
+
+if (smtpEnvVars.Any())
+{
+    Console.WriteLine($"   Found {smtpEnvVars.Count} SMTP-related environment variables:");
+    foreach (var varName in smtpEnvVars)
+    {
+        var value = Environment.GetEnvironmentVariable(varName);
+        if (varName.Contains("Password", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"      {varName} = {(string.IsNullOrEmpty(value) ? "❌ NOT SET" : "✅ SET (hidden)")}");
+        }
+        else
+        {
+            Console.WriteLine($"      {varName} = {(string.IsNullOrEmpty(value) ? "❌ NOT SET" : $"✅ {value}")}");
+        }
+    }
+}
+else
+{
+    Console.WriteLine("   ⚠️ No SMTP-related environment variables found!");
+}
+
 var smtpHost = Environment.GetEnvironmentVariable("SmtpSettings__Host") ?? builder.Configuration["SmtpSettings:Host"];
 var smtpPort = Environment.GetEnvironmentVariable("SmtpSettings__Port") ?? builder.Configuration["SmtpSettings:Port"] ?? "587";
 var smtpUsername = Environment.GetEnvironmentVariable("SmtpSettings__Username") ?? builder.Configuration["SmtpSettings:Username"];
@@ -286,6 +323,7 @@ var smtpFromEmail = Environment.GetEnvironmentVariable("SmtpSettings__FromEmail"
 var smtpFromName = Environment.GetEnvironmentVariable("SmtpSettings__FromName") ?? builder.Configuration["SmtpSettings:FromName"] ?? "Smart Campus";
 var smtpEnableSsl = Environment.GetEnvironmentVariable("SmtpSettings__EnableSsl") ?? builder.Configuration["SmtpSettings:EnableSsl"] ?? "true";
 
+Console.WriteLine("\n   Final SMTP Settings:");
 Console.WriteLine($"   SmtpSettings__Host: {(string.IsNullOrEmpty(smtpHost) ? "❌ NOT SET" : $"✅ {smtpHost}")}");
 Console.WriteLine($"   SmtpSettings__Port: {smtpPort}");
 Console.WriteLine($"   SmtpSettings__Username: {(string.IsNullOrEmpty(smtpUsername) ? "❌ NOT SET" : $"✅ {smtpUsername}")}");
