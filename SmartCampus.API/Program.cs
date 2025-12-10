@@ -121,32 +121,46 @@ var connectionStringSource = "ConnectionStrings__DefaultConnection";
 // Eğer connection string yoksa, Railway'nin otomatik MySQL variable'larını kullan
 if (string.IsNullOrEmpty(connectionString))
 {
-    var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
-    var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
-    var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
-    var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
-    var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
-    
-    // Railway'nin MYSQL_URL variable'ını da kontrol et (alternatif format)
-    var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
-    if (!string.IsNullOrEmpty(mysqlUrl))
+    // Önce DATABASE_URL'i kontrol et (Railway ve diğer platformlarda yaygın)
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrEmpty(databaseUrl))
     {
-        connectionString = mysqlUrl;
-        connectionStringSource = "MYSQL_URL";
+        connectionString = databaseUrl;
+        connectionStringSource = "DATABASE_URL";
     }
-    else if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+    else
     {
-        // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
-        // Railway genellikle "railway" database'ini otomatik oluşturur
-        if (string.IsNullOrEmpty(mysqlDatabase))
+        // Railway'nin MYSQL_URL variable'ını kontrol et (alternatif format)
+        var mysqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
+        if (!string.IsNullOrEmpty(mysqlUrl))
         {
-            mysqlDatabase = "railway";
+            connectionString = mysqlUrl;
+            connectionStringSource = "MYSQL_URL";
         }
-        
-        // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
-        // Railway internal network için SSL gerekmez
-        connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
-        connectionStringSource = "MYSQL* variables";
+        else
+        {
+            // Railway'nin ayrı ayrı MySQL variable'larını kontrol et
+            var mysqlHost = Environment.GetEnvironmentVariable("MYSQLHOST");
+            var mysqlPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+            var mysqlUser = Environment.GetEnvironmentVariable("MYSQLUSER");
+            var mysqlPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
+            var mysqlDatabase = Environment.GetEnvironmentVariable("MYSQLDATABASE");
+            
+            if (!string.IsNullOrEmpty(mysqlHost) && !string.IsNullOrEmpty(mysqlUser) && !string.IsNullOrEmpty(mysqlPassword))
+            {
+                // MYSQLDATABASE eksikse, Railway'nin varsayılan database adını kullan
+                // Railway genellikle "railway" database'ini otomatik oluşturur
+                if (string.IsNullOrEmpty(mysqlDatabase))
+                {
+                    mysqlDatabase = "railway";
+                }
+                
+                // MySQL connection string formatı: Server=...;Database=...;User=...;Password=...;Port=...;
+                // Railway internal network için SSL gerekmez
+                connectionString = $"Server={mysqlHost};Database={mysqlDatabase};User={mysqlUser};Password={mysqlPassword};Port={mysqlPort};SslMode=None;";
+                connectionStringSource = "MYSQL* variables";
+            }
+        }
     }
 }
 
