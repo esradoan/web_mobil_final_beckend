@@ -353,15 +353,15 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var emailLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         
         if (emailService is SMTPEmailService)
         {
-            logger.LogInformation("✅ SMTP Email Service aktif - Gerçek email gönderilecek");
+            emailLogger.LogInformation("✅ SMTP Email Service aktif - Gerçek email gönderilecek");
         }
         else if (emailService is MockEmailService)
         {
-            logger.LogWarning("⚠️  MockEmailService kullanılıyor. Gerçek email göndermek için appsettings.json'da SmtpSettings bölümünü doldurun.");
+            emailLogger.LogWarning("⚠️  MockEmailService kullanılıyor. Gerçek email göndermek için appsettings.json'da SmtpSettings bölümünü doldurun.");
         }
     }
 }
@@ -510,7 +510,8 @@ if (!skipMigrations)
                 else
                 {
                     // In Development, allow app to start even if migration fails
-                    if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
+                    var exMessage = ex.Message ?? string.Empty;
+                    if (exMessage.Contains("pending changes") || exMessage.Contains("Add a new migration"))
                     {
                         logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
                         logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
@@ -540,9 +541,9 @@ if (!skipMigrations)
 }
 else
 {
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogWarning("⚠️ SKIP_MIGRATIONS=true detected. Skipping database migrations.");
-    logger.LogWarning("⚠️ Make sure to run migrations manually or remove this flag.");
+    var skipLogger = app.Services.GetRequiredService<ILogger<Program>>();
+    skipLogger.LogWarning("⚠️ SKIP_MIGRATIONS=true detected. Skipping database migrations.");
+    skipLogger.LogWarning("⚠️ Make sure to run migrations manually or remove this flag.");
 }
 
 // Configure the HTTP request pipeline.
@@ -592,22 +593,22 @@ app.MapControllers();
 // Railway ve diğer platformlar için PORT environment variable'ını kullan
 // Yerel geliştirmede PORT yoksa launchSettings.json kullanılır
 var port = Environment.GetEnvironmentVariable("PORT");
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
 
 try
 {
-    logger.LogInformation("🚀 Starting application...");
+    startupLogger.LogInformation("🚀 Starting application...");
     
     if (!string.IsNullOrEmpty(port))
     {
         // Production (Railway, Heroku, vb.) - PORT environment variable set edilmiş
-        logger.LogInformation($"🌐 Listening on port {port} (from PORT environment variable)");
+        startupLogger.LogInformation($"🌐 Listening on port {port} (from PORT environment variable)");
         app.Run($"http://0.0.0.0:{port}");
     }
     else
     {
         // Development - launchSettings.json kullanılır
-        logger.LogInformation("🌐 Starting application (using launchSettings.json)");
+        startupLogger.LogInformation("🌐 Starting application (using launchSettings.json)");
         app.Run();
     }
 }
@@ -616,29 +617,29 @@ catch (Exception ex)
     // Güvenli exception logging - exception.ToString() başarısız olabilir
     try
     {
-        logger.LogCritical(ex, "❌ CRITICAL: Application failed to start");
+        startupLogger.LogCritical(ex, "❌ CRITICAL: Application failed to start");
         
         // Exception detaylarını güvenli şekilde logla
-        logger.LogCritical("Exception Type: {Type}", ex.GetType().FullName);
-        logger.LogCritical("Exception Message: {Message}", ex.Message ?? "No message");
+        startupLogger.LogCritical("Exception Type: {Type}", ex.GetType().FullName);
+        startupLogger.LogCritical("Exception Message: {Message}", ex.Message ?? "No message");
         
         if (ex.InnerException != null)
         {
             try
             {
-                logger.LogCritical("Inner Exception Type: {Type}", ex.InnerException.GetType().FullName);
-                logger.LogCritical("Inner Exception Message: {Message}", ex.InnerException.Message ?? "No message");
+                startupLogger.LogCritical("Inner Exception Type: {Type}", ex.InnerException.GetType().FullName);
+                startupLogger.LogCritical("Inner Exception Message: {Message}", ex.InnerException.Message ?? "No message");
             }
             catch
             {
-                logger.LogCritical("⚠️ Could not log inner exception details");
+                startupLogger.LogCritical("⚠️ Could not log inner exception details");
             }
         }
         
         // Stack trace'i güvenli şekilde logla
         if (!string.IsNullOrEmpty(ex.StackTrace))
         {
-            logger.LogCritical("Stack Trace: {StackTrace}", ex.StackTrace);
+            startupLogger.LogCritical("Stack Trace: {StackTrace}", ex.StackTrace);
         }
     }
     catch (Exception logEx)
