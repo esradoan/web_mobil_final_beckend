@@ -17,6 +17,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.FileProviders; // Static files için
 using System.Collections.Generic;
+using System.Threading; // Thread.Sleep için
+using System.IO; // Path, Directory için
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -247,7 +249,27 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]!);
+var jwtSecret = jwtSettings["Secret"];
+
+// JWT Secret validation
+if (string.IsNullOrEmpty(jwtSecret))
+{
+    throw new InvalidOperationException(
+        "JWT Secret is not configured. " +
+        "Please set 'JwtSettings__Secret' environment variable or add it to appsettings.json. " +
+        "Secret must be at least 32 characters long."
+    );
+}
+
+if (jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException(
+        $"JWT Secret is too short ({jwtSecret.Length} characters). " +
+        "Secret must be at least 32 characters long for security."
+    );
+}
+
+var key = Encoding.ASCII.GetBytes(jwtSecret);
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -274,38 +296,79 @@ builder.Services.AddAuthentication(x =>
 var app = builder.Build();
 
 // Log connection string (password'u gizle) - app build edildikten sonra
-var tempLogger = app.Services.GetRequiredService<ILogger<Program>>();
-var maskedConnectionString = connectionString.Contains("Password=") 
-    ? connectionString.Substring(0, connectionString.IndexOf("Password=") + 9) + "***;" 
-    : connectionString;
-tempLogger.LogInformation($"🔌 Connection string source: {connectionStringSource}");
-tempLogger.LogInformation($"🔌 Using connection string: {maskedConnectionString}");
+try
+{
+    var tempLogger = app.Services.GetRequiredService<ILogger<Program>>();
+    
+    // Güvenli connection string masking
+    string maskedConnectionString;
+    try
+    {
+        if (connectionString.Contains("Password=", StringComparison.OrdinalIgnoreCase))
+        {
+            var passwordIndex = connectionString.IndexOf("Password=", StringComparison.OrdinalIgnoreCase);
+            maskedConnectionString = connectionString.Substring(0, passwordIndex + 9) + "***;";
+        }
+        else
+        {
+            maskedConnectionString = connectionString;
+        }
+    }
+    catch
+    {
+        maskedConnectionString = "***connection string masked***";
+    }
+    
+    tempLogger.LogInformation($"🔌 Connection string source: {connectionStringSource}");
+    tempLogger.LogInformation($"🔌 Using connection string: {maskedConnectionString}");
 
-// Connection string'den database adını çıkar ve logla
-var dbNameMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-if (dbNameMatch.Success)
-{
-    tempLogger.LogInformation($"📊 Database name from connection string: {dbNameMatch.Groups[1].Value}");
+    // Connection string'den database adını çıkar ve logla
+    try
+    {
+        var dbNameMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (dbNameMatch.Success)
+        {
+            tempLogger.LogInformation($"📊 Database name from connection string: {dbNameMatch.Groups[1].Value}");
+        }
+        else
+        {
+            tempLogger.LogWarning("⚠️ Database name not found in connection string!");
+        }
+    }
+    catch (Exception regexEx)
+    {
+        tempLogger.LogWarning($"⚠️ Could not extract database name from connection string: {regexEx.Message}");
+    }
 }
-else
+catch (Exception loggerEx)
 {
-    tempLogger.LogWarning("⚠️ Database name not found in connection string!");
+    // Logger bile alınamadı - console'a yaz
+    Console.WriteLine($"⚠️ Could not initialize logger: {loggerEx.Message}");
+    Console.WriteLine($"Connection string source: {connectionStringSource}");
 }
 
 // Log email service status
-using (var scope = app.Services.CreateScope())
+try
 {
-    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
-    if (emailService is SMTPEmailService)
+    using (var scope = app.Services.CreateScope())
     {
-        logger.LogInformation("✅ SMTP Email Service aktif - Gerçek email gönderilecek");
+        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        
+        if (emailService is SMTPEmailService)
+        {
+            logger.LogInformation("✅ SMTP Email Service aktif - Gerçek email gönderilecek");
+        }
+        else if (emailService is MockEmailService)
+        {
+            logger.LogWarning("⚠️  MockEmailService kullanılıyor. Gerçek email göndermek için appsettings.json'da SmtpSettings bölümünü doldurun.");
+        }
     }
-    else if (emailService is MockEmailService)
-    {
-        logger.LogWarning("⚠️  MockEmailService kullanılıyor. Gerçek email göndermek için appsettings.json'da SmtpSettings bölümünü doldurun.");
-    }
+}
+catch (Exception emailServiceEx)
+{
+    // Email service logging başarısız oldu - kritik değil, devam et
+    Console.WriteLine($"⚠️ Could not log email service status: {emailServiceEx.Message}");
 }
 
 // Auto-migrate database (both Development and Production)
@@ -418,26 +481,58 @@ if (!skipMigrations)
         }
         catch (Exception ex)
         {
-            // In Production, migration failures should prevent app startup
-            if (app.Environment.IsProduction())
+            // Güvenli exception logging
+            try
             {
-                logger.LogError(ex, "❌ Critical error: Failed to migrate database in Production. Application cannot start.");
-                logger.LogError("💡 To skip migrations temporarily, set SKIP_MIGRATIONS=true environment variable");
-                throw; // Fail fast in Production
-            }
-            else
-            {
-                // In Development, allow app to start even if migration fails
-                if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
+                logger.LogError("❌ Exception occurred during database migration");
+                logger.LogError("Exception Type: {Type}", ex.GetType().FullName);
+                logger.LogError("Exception Message: {Message}", ex.Message ?? "No message");
+                
+                if (ex.InnerException != null)
                 {
-                    logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
-                    logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
-                    logger.LogInformation("✅ Application will continue running...");
+                    try
+                    {
+                        logger.LogError("Inner Exception: {InnerMessage}", ex.InnerException.Message ?? "No message");
+                    }
+                    catch
+                    {
+                        logger.LogError("⚠️ Could not log inner exception");
+                    }
+                }
+                
+                // In Production, migration failures should prevent app startup
+                if (app.Environment.IsProduction())
+                {
+                    logger.LogError("❌ Critical error: Failed to migrate database in Production. Application cannot start.");
+                    logger.LogError("💡 To skip migrations temporarily, set SKIP_MIGRATIONS=true environment variable");
+                    throw; // Fail fast in Production
                 }
                 else
                 {
-                    logger.LogError(ex, "❌ An error occurred while migrating the database.");
-                    logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
+                    // In Development, allow app to start even if migration fails
+                    if (ex.Message.Contains("pending changes") || ex.Message.Contains("Add a new migration"))
+                    {
+                        logger.LogWarning("⚠️ Model has pending changes (this is OK during development).");
+                        logger.LogWarning("💡 To fix: Run 'dotnet ef migrations add MigrationName --project ../SmartCampus.DataAccess --startup-project .'");
+                        logger.LogInformation("✅ Application will continue running...");
+                    }
+                    else
+                    {
+                        logger.LogError("❌ An error occurred while migrating the database.");
+                        logger.LogWarning("⚠️ Application will continue, but database may not be up to date.");
+                    }
+                }
+            }
+            catch (Exception logEx)
+            {
+                // Exception logging bile başarısız oldu
+                Console.WriteLine($"CRITICAL: Failed to log migration exception. Log exception: {logEx.Message}");
+                Console.WriteLine($"Original exception type: {ex.GetType().Name}");
+                
+                // Production'da yine de throw et
+                if (app.Environment.IsProduction())
+                {
+                    throw;
                 }
             }
         }
@@ -497,13 +592,62 @@ app.MapControllers();
 // Railway ve diğer platformlar için PORT environment variable'ını kullan
 // Yerel geliştirmede PORT yoksa launchSettings.json kullanılır
 var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrEmpty(port))
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+try
 {
-    // Production (Railway, Heroku, vb.) - PORT environment variable set edilmiş
-    app.Run($"http://0.0.0.0:{port}");
+    logger.LogInformation("🚀 Starting application...");
+    
+    if (!string.IsNullOrEmpty(port))
+    {
+        // Production (Railway, Heroku, vb.) - PORT environment variable set edilmiş
+        logger.LogInformation($"🌐 Listening on port {port} (from PORT environment variable)");
+        app.Run($"http://0.0.0.0:{port}");
+    }
+    else
+    {
+        // Development - launchSettings.json kullanılır
+        logger.LogInformation("🌐 Starting application (using launchSettings.json)");
+        app.Run();
+    }
 }
-else
+catch (Exception ex)
 {
-    // Development - launchSettings.json kullanılır
-    app.Run();
+    // Güvenli exception logging - exception.ToString() başarısız olabilir
+    try
+    {
+        logger.LogCritical(ex, "❌ CRITICAL: Application failed to start");
+        
+        // Exception detaylarını güvenli şekilde logla
+        logger.LogCritical("Exception Type: {Type}", ex.GetType().FullName);
+        logger.LogCritical("Exception Message: {Message}", ex.Message ?? "No message");
+        
+        if (ex.InnerException != null)
+        {
+            try
+            {
+                logger.LogCritical("Inner Exception Type: {Type}", ex.InnerException.GetType().FullName);
+                logger.LogCritical("Inner Exception Message: {Message}", ex.InnerException.Message ?? "No message");
+            }
+            catch
+            {
+                logger.LogCritical("⚠️ Could not log inner exception details");
+            }
+        }
+        
+        // Stack trace'i güvenli şekilde logla
+        if (!string.IsNullOrEmpty(ex.StackTrace))
+        {
+            logger.LogCritical("Stack Trace: {StackTrace}", ex.StackTrace);
+        }
+    }
+    catch (Exception logEx)
+    {
+        // Exception logging bile başarısız oldu - en basit şekilde logla
+        Console.WriteLine($"CRITICAL: Failed to start application. Exception logging also failed: {logEx.Message}");
+        Console.WriteLine($"Original exception type: {ex.GetType().Name}");
+    }
+    
+    // Application'ı sonlandır
+    Environment.Exit(1);
 }
