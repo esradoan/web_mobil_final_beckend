@@ -10,21 +10,36 @@ namespace SmartCampus.DataAccess
         {
         }
 
+        // Part 1 - User Management
         public DbSet<Student> Students { get; set; } = null!;
         public DbSet<Faculty> Faculties { get; set; } = null!;
         public DbSet<Department> Departments { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; } = null!;
         public DbSet<UserActivityLog> UserActivityLogs { get; set; } = null!;
+        
+        // Part 2 - Academic Management
+        public DbSet<Classroom> Classrooms { get; set; } = null!;
+        public DbSet<Course> Courses { get; set; } = null!;
+        public DbSet<CoursePrerequisite> CoursePrerequisites { get; set; } = null!;
+        public DbSet<CourseSection> CourseSections { get; set; } = null!;
+        public DbSet<Enrollment> Enrollments { get; set; } = null!;
+        
+        // Part 2 - Attendance System
+        public DbSet<AttendanceSession> AttendanceSessions { get; set; } = null!;
+        public DbSet<AttendanceRecord> AttendanceRecords { get; set; } = null!;
+        public DbSet<ExcuseRequest> ExcuseRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Critical for Identity
 
+            // ==================== PART 1 RELATIONSHIPS ====================
+            
             // User - Student (1:1)
             modelBuilder.Entity<Student>()
                 .HasOne(s => s.User)
-                .WithOne() // User might not explicitly hold reference to Student in simple design, or add property in User
+                .WithOne()
                 .HasForeignKey<Student>(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -49,8 +64,137 @@ namespace SmartCampus.DataAccess
                 .HasForeignKey(f => f.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Seed Data for Departments - Genişletilmiş Yelpaze
+            // ==================== PART 2 RELATIONSHIPS ====================
+            
+            // Classroom - Unique constraint
+            modelBuilder.Entity<Classroom>()
+                .HasIndex(c => new { c.Building, c.RoomNumber })
+                .IsUnique();
+
+            // Course - Department (N:1)
+            modelBuilder.Entity<Course>()
+                .HasOne(c => c.Department)
+                .WithMany()
+                .HasForeignKey(c => c.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Course>()
+                .HasIndex(c => c.Code)
+                .IsUnique();
+
+            // CoursePrerequisite - Composite Primary Key
+            modelBuilder.Entity<CoursePrerequisite>()
+                .HasKey(cp => new { cp.CourseId, cp.PrerequisiteCourseId });
+
+            modelBuilder.Entity<CoursePrerequisite>()
+                .HasOne(cp => cp.Course)
+                .WithMany(c => c.Prerequisites)
+                .HasForeignKey(cp => cp.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CoursePrerequisite>()
+                .HasOne(cp => cp.PrerequisiteCourse)
+                .WithMany(c => c.PrerequisiteFor)
+                .HasForeignKey(cp => cp.PrerequisiteCourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // CourseSection - Course (N:1)
+            modelBuilder.Entity<CourseSection>()
+                .HasOne(cs => cs.Course)
+                .WithMany(c => c.Sections)
+                .HasForeignKey(cs => cs.CourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CourseSection>()
+                .HasOne(cs => cs.Instructor)
+                .WithMany()
+                .HasForeignKey(cs => cs.InstructorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CourseSection>()
+                .HasOne(cs => cs.Classroom)
+                .WithMany()
+                .HasForeignKey(cs => cs.ClassroomId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CourseSection>()
+                .HasIndex(cs => new { cs.CourseId, cs.SectionNumber, cs.Semester, cs.Year })
+                .IsUnique();
+
+            // Enrollment - Student & Section
+            modelBuilder.Entity<Enrollment>()
+                .HasOne(e => e.Student)
+                .WithMany()
+                .HasForeignKey(e => e.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Enrollment>()
+                .HasOne(e => e.Section)
+                .WithMany(cs => cs.Enrollments)
+                .HasForeignKey(e => e.SectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Enrollment>()
+                .HasIndex(e => new { e.StudentId, e.SectionId })
+                .IsUnique();
+
+            // AttendanceSession
+            modelBuilder.Entity<AttendanceSession>()
+                .HasOne(a => a.Section)
+                .WithMany(cs => cs.AttendanceSessions)
+                .HasForeignKey(a => a.SectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AttendanceSession>()
+                .HasOne(a => a.Instructor)
+                .WithMany()
+                .HasForeignKey(a => a.InstructorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AttendanceSession>()
+                .HasIndex(a => a.QrCode)
+                .IsUnique();
+
+            // AttendanceRecord
+            modelBuilder.Entity<AttendanceRecord>()
+                .HasOne(ar => ar.Session)
+                .WithMany(a => a.Records)
+                .HasForeignKey(ar => ar.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AttendanceRecord>()
+                .HasOne(ar => ar.Student)
+                .WithMany()
+                .HasForeignKey(ar => ar.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AttendanceRecord>()
+                .HasIndex(ar => new { ar.SessionId, ar.StudentId })
+                .IsUnique();
+
+            // ExcuseRequest
+            modelBuilder.Entity<ExcuseRequest>()
+                .HasOne(er => er.Student)
+                .WithMany()
+                .HasForeignKey(er => er.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ExcuseRequest>()
+                .HasOne(er => er.Session)
+                .WithMany(a => a.ExcuseRequests)
+                .HasForeignKey(er => er.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ExcuseRequest>()
+                .HasOne(er => er.Reviewer)
+                .WithMany()
+                .HasForeignKey(er => er.ReviewedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ==================== SEED DATA ====================
             var seedDate = new System.DateTime(2024, 1, 1);
+            
+            // Departments Seed Data
             modelBuilder.Entity<Department>().HasData(
                 // Mühendislik Fakültesi
                 new Department { Id = 1, Name = "Bilgisayar Mühendisliği", Code = "CENG", FacultyName = "Mühendislik Fakültesi", CreatedAt = seedDate },
@@ -116,6 +260,45 @@ namespace SmartCampus.DataAccess
                 new Department { Id = 45, Name = "Mimarlık", Code = "ARCH", FacultyName = "Mimarlık Fakültesi", CreatedAt = seedDate },
                 new Department { Id = 46, Name = "Şehir ve Bölge Planlama", Code = "URP", FacultyName = "Mimarlık Fakültesi", CreatedAt = seedDate },
                 new Department { Id = 47, Name = "İç Mimarlık", Code = "INTARCH", FacultyName = "Mimarlık Fakültesi", CreatedAt = seedDate }
+            );
+
+            // Classrooms Seed Data (with GPS coordinates)
+            modelBuilder.Entity<Classroom>().HasData(
+                new Classroom { Id = 1, Building = "Mühendislik Fakültesi", RoomNumber = "A101", Capacity = 60, Latitude = 41.0082m, Longitude = 29.0389m, CreatedAt = seedDate },
+                new Classroom { Id = 2, Building = "Mühendislik Fakültesi", RoomNumber = "A102", Capacity = 40, Latitude = 41.0083m, Longitude = 29.0390m, CreatedAt = seedDate },
+                new Classroom { Id = 3, Building = "Mühendislik Fakültesi", RoomNumber = "B201", Capacity = 80, Latitude = 41.0084m, Longitude = 29.0391m, CreatedAt = seedDate },
+                new Classroom { Id = 4, Building = "Fen-Edebiyat Fakültesi", RoomNumber = "C101", Capacity = 50, Latitude = 41.0085m, Longitude = 29.0392m, CreatedAt = seedDate },
+                new Classroom { Id = 5, Building = "Fen-Edebiyat Fakültesi", RoomNumber = "C102", Capacity = 30, Latitude = 41.0086m, Longitude = 29.0393m, CreatedAt = seedDate }
+            );
+
+            // Courses Seed Data
+            modelBuilder.Entity<Course>().HasData(
+                // Bilgisayar Mühendisliği Dersleri
+                new Course { Id = 1, Code = "CENG101", Name = "Programlamaya Giriş", Description = "Temel programlama kavramları", Credits = 4, Ects = 6, DepartmentId = 1, CreatedAt = seedDate },
+                new Course { Id = 2, Code = "CENG102", Name = "Nesne Yönelimli Programlama", Description = "OOP kavramları", Credits = 4, Ects = 6, DepartmentId = 1, CreatedAt = seedDate },
+                new Course { Id = 3, Code = "CENG201", Name = "Veri Yapıları", Description = "Temel veri yapıları ve algoritmalar", Credits = 4, Ects = 6, DepartmentId = 1, CreatedAt = seedDate },
+                new Course { Id = 4, Code = "CENG301", Name = "Veritabanı Yönetim Sistemleri", Description = "SQL ve veritabanı tasarımı", Credits = 3, Ects = 5, DepartmentId = 1, CreatedAt = seedDate },
+                new Course { Id = 5, Code = "CENG302", Name = "Web Programlama", Description = "Frontend ve backend geliştirme", Credits = 3, Ects = 5, DepartmentId = 1, CreatedAt = seedDate },
+                
+                // Matematik Dersleri
+                new Course { Id = 6, Code = "MATH101", Name = "Matematik I", Description = "Kalkülüs I", Credits = 4, Ects = 6, DepartmentId = 16, CreatedAt = seedDate },
+                new Course { Id = 7, Code = "MATH102", Name = "Matematik II", Description = "Kalkülüs II", Credits = 4, Ects = 6, DepartmentId = 16, CreatedAt = seedDate },
+                new Course { Id = 8, Code = "MATH201", Name = "Lineer Cebir", Description = "Matrisler ve vektörler", Credits = 3, Ects = 5, DepartmentId = 16, CreatedAt = seedDate },
+                
+                // Fizik Dersleri
+                new Course { Id = 9, Code = "PHYS101", Name = "Fizik I", Description = "Mekanik", Credits = 4, Ects = 6, DepartmentId = 17, CreatedAt = seedDate },
+                new Course { Id = 10, Code = "PHYS102", Name = "Fizik II", Description = "Elektrik ve Manyetizma", Credits = 4, Ects = 6, DepartmentId = 17, CreatedAt = seedDate }
+            );
+
+            // Course Prerequisites Seed Data
+            modelBuilder.Entity<CoursePrerequisite>().HasData(
+                new CoursePrerequisite { CourseId = 2, PrerequisiteCourseId = 1 },  // OOP requires Programlamaya Giriş
+                new CoursePrerequisite { CourseId = 3, PrerequisiteCourseId = 2 },  // Veri Yapıları requires OOP
+                new CoursePrerequisite { CourseId = 4, PrerequisiteCourseId = 3 },  // Veritabanı requires Veri Yapıları
+                new CoursePrerequisite { CourseId = 5, PrerequisiteCourseId = 4 },  // Web Programlama requires Veritabanı
+                new CoursePrerequisite { CourseId = 7, PrerequisiteCourseId = 6 },  // Matematik II requires Matematik I
+                new CoursePrerequisite { CourseId = 8, PrerequisiteCourseId = 7 },  // Lineer Cebir requires Matematik II
+                new CoursePrerequisite { CourseId = 10, PrerequisiteCourseId = 9 }  // Fizik II requires Fizik I
             );
         }
     }

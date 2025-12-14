@@ -362,6 +362,12 @@ else
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+// Part 2 Services - Academic Management & Attendance
+builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IGradeCalculationService, GradeCalculationService>();
+
 // Configure JWT Authentication
 // Öncelik: Environment variables > appsettings.json
 var jwtSecret = Environment.GetEnvironmentVariable("JwtSettings__Secret") ?? builder.Configuration["JwtSettings:Secret"];
