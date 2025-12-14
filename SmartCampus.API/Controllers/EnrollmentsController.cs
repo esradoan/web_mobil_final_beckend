@@ -100,10 +100,12 @@ namespace SmartCampus.API.Controllers
     public class GradesController : ControllerBase
     {
         private readonly IEnrollmentService _enrollmentService;
+        private readonly ITranscriptPdfService _pdfService;
 
-        public GradesController(IEnrollmentService enrollmentService)
+        public GradesController(IEnrollmentService enrollmentService, ITranscriptPdfService pdfService)
         {
             _enrollmentService = enrollmentService;
+            _pdfService = pdfService;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
@@ -139,7 +141,7 @@ namespace SmartCampus.API.Controllers
 
         /// <summary>
         /// Transkript PDF (Student)
-        /// TODO: QuestPDF ile PDF oluşturma
+        /// QuestPDF ile profesyonel PDF oluşturma
         /// </summary>
         [HttpGet("transcript/pdf")]
         [Authorize(Roles = "Student")]
@@ -148,14 +150,9 @@ namespace SmartCampus.API.Controllers
             try
             {
                 var transcript = await _enrollmentService.GetTranscriptAsync(GetUserId());
-                // TODO: QuestPDF ile PDF oluştur
-                // var pdfBytes = _pdfService.GenerateTranscript(transcript);
-                // return File(pdfBytes, "application/pdf", $"transcript_{transcript.StudentNumber}.pdf");
+                var pdfBytes = _pdfService.GenerateTranscript(transcript);
                 
-                return Ok(new { 
-                    message = "PDF generation not implemented yet", 
-                    data = transcript 
-                });
+                return File(pdfBytes, "application/pdf", $"transcript_{transcript.StudentNumber}.pdf");
             }
             catch (Exception ex)
             {
