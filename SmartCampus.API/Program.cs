@@ -371,6 +371,10 @@ builder.Services.AddScoped<ITranscriptPdfService, TranscriptPdfService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 
+// SignalR - Real-time WebSocket
+builder.Services.AddSignalR();
+builder.Services.AddScoped<SmartCampus.API.Services.IAttendanceHubService, SmartCampus.API.Services.AttendanceHubService>();
+
 // Background Services - Cron Jobs
 builder.Services.AddHostedService<AbsenceWarningService>();
 
@@ -603,6 +607,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// SignalR Hub Endpoints
+app.MapHub<SmartCampus.API.Hubs.AttendanceHub>("/hubs/attendance");
 
 // Railway ve diğer platformlar için PORT environment variable'ını kullan
 // Yerel geliştirmede PORT yoksa launchSettings.json kullanılır

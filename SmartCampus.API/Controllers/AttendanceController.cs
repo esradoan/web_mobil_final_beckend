@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
+using SmartCampus.API.Services;
 using System.Security.Claims;
 
 namespace SmartCampus.API.Controllers
@@ -13,13 +14,16 @@ namespace SmartCampus.API.Controllers
     {
         private readonly IAttendanceService _attendanceService;
         private readonly IQrCodeService? _qrCodeService;
+        private readonly IAttendanceHubService? _hubService;
 
         public AttendanceController(
             IAttendanceService attendanceService,
-            IQrCodeService? qrCodeService = null)
+            IQrCodeService? qrCodeService = null,
+            IAttendanceHubService? hubService = null)
         {
             _attendanceService = attendanceService;
             _qrCodeService = qrCodeService;
+            _hubService = hubService;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
@@ -116,6 +120,26 @@ namespace SmartCampus.API.Controllers
             try
             {
                 var result = await _attendanceService.CheckInAsync(id, GetUserId(), dto, GetClientIp());
+                
+                // Broadcast to SignalR if not flagged for distance
+                if (_hubService != null && !(result.IsFlagged && result.FlagReason?.Contains("Distance exceeded") == true))
+                {
+                    var session = await _attendanceService.GetSessionByIdAsync(id);
+                    if (session != null)
+                    {
+                        var user = User;
+                        _ = _hubService.NotifyStudentCheckedInAsync(id, new StudentCheckInNotification
+                        {
+                            StudentId = GetUserId(),
+                            StudentName = user.FindFirstValue(ClaimTypes.Name) ?? "Unknown",
+                            CheckInTime = DateTime.UtcNow,
+                            Distance = result.Distance,
+                            IsFlagged = result.IsFlagged,
+                            FlagReason = result.FlagReason
+                        });
+                        _ = _hubService.NotifyAttendanceCountAsync(id, session.AttendedCount, session.TotalStudents);
+                    }
+                }
                 
                 if (result.IsFlagged && result.FlagReason?.Contains("Distance exceeded") == true)
                 {
