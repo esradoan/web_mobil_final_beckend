@@ -369,6 +369,7 @@ builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IGradeCalculationService, GradeCalculationService>();
 builder.Services.AddScoped<ITranscriptPdfService, TranscriptPdfService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 
 // Background Services - Cron Jobs
 builder.Services.AddHostedService<AbsenceWarningService>();

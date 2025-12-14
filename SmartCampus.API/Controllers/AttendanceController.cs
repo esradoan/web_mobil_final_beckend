@@ -12,10 +12,14 @@ namespace SmartCampus.API.Controllers
     public class AttendanceController : ControllerBase
     {
         private readonly IAttendanceService _attendanceService;
+        private readonly IQrCodeService? _qrCodeService;
 
-        public AttendanceController(IAttendanceService attendanceService)
+        public AttendanceController(
+            IAttendanceService attendanceService,
+            IQrCodeService? qrCodeService = null)
         {
             _attendanceService = attendanceService;
+            _qrCodeService = qrCodeService;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
@@ -143,6 +147,88 @@ namespace SmartCampus.API.Controllers
         {
             var result = await _attendanceService.GetMyAttendanceAsync(GetUserId());
             return Ok(new { data = result });
+        }
+
+        // ==================== QR CODE BONUS ====================
+
+        /// <summary>
+        /// QR kod görselini al (Faculty) - Base64 PNG
+        /// </summary>
+        [HttpGet("sessions/{id}/qr")]
+        [Authorize(Roles = "Faculty")]
+        public async Task<IActionResult> GetQrCode(int id)
+        {
+            if (_qrCodeService == null)
+                return BadRequest(new { message = "QR code service not available", error = "NotConfigured" });
+
+            try
+            {
+                var result = await _qrCodeService.GenerateQrCodeImageAsync(id);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = "QrCodeFailed" });
+            }
+        }
+
+        /// <summary>
+        /// QR kodu yenile (Faculty) - 5 saniyede bir çağrılmalı
+        /// </summary>
+        [HttpPost("sessions/{id}/qr/refresh")]
+        [Authorize(Roles = "Faculty")]
+        public async Task<IActionResult> RefreshQrCode(int id)
+        {
+            if (_qrCodeService == null)
+                return BadRequest(new { message = "QR code service not available", error = "NotConfigured" });
+
+            try
+            {
+                var newCode = await _qrCodeService.RefreshQrCodeAsync(id, GetUserId());
+                var qrImage = await _qrCodeService.GenerateQrCodeImageAsync(id);
+                return Ok(qrImage);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = "QrRefreshFailed" });
+            }
+        }
+
+        /// <summary>
+        /// QR kod ile yoklama verme (Student)
+        /// GPS + QR kod doğrulaması yapılır
+        /// </summary>
+        [HttpPost("sessions/{id}/checkin-qr")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> CheckInWithQr(int id, [FromBody] QrCheckInRequestDto dto)
+        {
+            if (_qrCodeService == null)
+                return BadRequest(new { message = "QR code service not available", error = "NotConfigured" });
+
+            try
+            {
+                var result = await _qrCodeService.CheckInWithQrAsync(id, GetUserId(), dto, GetClientIp());
+                
+                if (!result.Success)
+                {
+                    return BadRequest(new { 
+                        message = result.Message, 
+                        error = "QrCheckInFailed",
+                        isFlagged = result.IsFlagged,
+                        flagReason = result.FlagReason
+                    });
+                }
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = "QrCheckInFailed" });
+            }
         }
 
         // ==================== EXCUSE REQUESTS ====================
