@@ -40,6 +40,12 @@ namespace SmartCampus.Business.DTOs
         public decimal Latitude { get; set; }
         public decimal Longitude { get; set; }
         public decimal Accuracy { get; set; }
+        
+        // Advanced spoofing detection fields
+        public bool? IsMockLocation { get; set; } // From Android/iOS mock location API
+        public DateTime? Timestamp { get; set; } // GPS timestamp for velocity check
+        public decimal? Altitude { get; set; } // For additional validation
+        public decimal? Speed { get; set; } // Device reported speed (m/s)
     }
 
     public class CheckInResponseDto

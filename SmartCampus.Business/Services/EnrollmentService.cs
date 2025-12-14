@@ -22,11 +22,16 @@ namespace SmartCampus.Business.Services
     {
         private readonly CampusDbContext _context;
         private readonly IGradeCalculationService _gradeService;
+        private readonly INotificationService? _notificationService;
 
-        public EnrollmentService(CampusDbContext context, IGradeCalculationService gradeService)
+        public EnrollmentService(
+            CampusDbContext context, 
+            IGradeCalculationService gradeService,
+            INotificationService? notificationService = null)
         {
             _context = context;
             _gradeService = gradeService;
+            _notificationService = notificationService;
         }
 
         public async Task<EnrollmentDto> EnrollAsync(int studentId, int sectionId)
@@ -70,6 +75,12 @@ namespace SmartCampus.Business.Services
 
             _context.Enrollments.Add(enrollment);
             await _context.SaveChangesAsync();
+
+            // 6. Send notification
+            if (_notificationService != null)
+            {
+                _ = _notificationService.SendEnrollmentConfirmationAsync(studentId, sectionId);
+            }
 
             return await MapToEnrollmentDtoAsync(enrollment);
         }
@@ -330,6 +341,12 @@ namespace SmartCampus.Business.Services
 
             enrollment.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            // Send grade notification
+            if (_notificationService != null)
+            {
+                _ = _notificationService.SendGradeNotificationAsync(enrollment.StudentId, enrollment.Id);
+            }
 
             return new GradeResultDto
             {

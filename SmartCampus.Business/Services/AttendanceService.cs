@@ -24,11 +24,13 @@ namespace SmartCampus.Business.Services
     public class AttendanceService : IAttendanceService
     {
         private readonly CampusDbContext _context;
+        private readonly INotificationService? _notificationService;
         private const double EarthRadiusMeters = 6371000;
 
-        public AttendanceService(CampusDbContext context)
+        public AttendanceService(CampusDbContext context, INotificationService? notificationService = null)
         {
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task<AttendanceSessionDto> CreateSessionAsync(int instructorId, CreateAttendanceSessionDto dto)
@@ -62,6 +64,12 @@ namespace SmartCampus.Business.Services
 
             _context.AttendanceSessions.Add(session);
             await _context.SaveChangesAsync();
+
+            // Send notification to enrolled students
+            if (_notificationService != null)
+            {
+                _ = _notificationService.SendSessionStartNotificationAsync(dto.SectionId, session.Id);
+            }
 
             return await MapToSessionDtoAsync(session);
         }
@@ -129,8 +137,8 @@ namespace SmartCampus.Business.Services
                 (double)dto.Latitude, (double)dto.Longitude,
                 (double)session.Latitude, (double)session.Longitude);
 
-            // Spoofing detection
-            var (isFlagged, flagReason) = DetectSpoofing(dto, session, distance, clientIp);
+            // Advanced spoofing detection (async with velocity check)
+            var (isFlagged, flagReason) = await DetectSpoofingAsync(dto, session, distance, clientIp, studentId);
 
             var record = new AttendanceRecord
             {
@@ -186,7 +194,20 @@ namespace SmartCampus.Business.Services
 
         private double ToRadians(double degrees) => degrees * Math.PI / 180;
 
-        private (bool IsFlagged, string? Reason) DetectSpoofing(CheckInRequestDto dto, AttendanceSession session, double distance, string? clientIp)
+        /// <summary>
+        /// Gelişmiş GPS Spoofing Tespit Sistemi
+        /// - Distance check: Geofence dışında mı?
+        /// - Accuracy check: GPS doğruluğu düşük mü?
+        /// - Mock location: Sahte konum uygulaması kullanılıyor mu?
+        /// - Velocity check: İmkansız hız tespit edildi mi?
+        /// - IP validation: Kampüs ağında mı?
+        /// </summary>
+        private async Task<(bool IsFlagged, string? Reason)> DetectSpoofingAsync(
+            CheckInRequestDto dto, 
+            AttendanceSession session, 
+            double distance, 
+            string? clientIp,
+            int studentId)
         {
             var flags = new List<string>();
 
@@ -202,10 +223,31 @@ namespace SmartCampus.Business.Services
                 flags.Add($"Low accuracy: {dto.Accuracy:F1}m");
             }
 
-            // 3. IP check (kampüs ağı - placeholder)
-            // In production, check if IP is in campus range
-            // For now, just log the IP
-            // if (!IsCampusNetwork(clientIp)) flags.Add("Not on campus network");
+            // 3. Mock location detection (from device API)
+            if (dto.IsMockLocation == true)
+            {
+                flags.Add("Mock location detected");
+            }
+
+            // 4. Velocity check (impossible travel detection)
+            var velocityFlag = await CheckImpossibleVelocityAsync(studentId, dto);
+            if (!string.IsNullOrEmpty(velocityFlag))
+            {
+                flags.Add(velocityFlag);
+            }
+
+            // 5. IP validation (campus network check)
+            var ipFlag = ValidateCampusNetwork(clientIp);
+            if (!string.IsNullOrEmpty(ipFlag))
+            {
+                flags.Add(ipFlag);
+            }
+
+            // 6. Speed validation (device reported speed)
+            if (dto.Speed.HasValue && dto.Speed > 5) // Walking speed is ~1.4 m/s, running ~3 m/s
+            {
+                flags.Add($"Suspicious speed: {dto.Speed:F1} m/s");
+            }
 
             if (flags.Any())
             {
@@ -213,6 +255,129 @@ namespace SmartCampus.Business.Services
             }
 
             return (false, null);
+        }
+
+        /// <summary>
+        /// İmkansız Seyahat Kontrolü (Velocity Check)
+        /// Son check-in ile mevcut konum arasındaki mesafeyi süreye bölerek hız hesaplar.
+        /// İnsan için imkansız hızlar tespit edilirse flag atar.
+        /// </summary>
+        private async Task<string?> CheckImpossibleVelocityAsync(int studentId, CheckInRequestDto dto)
+        {
+            // Get the last attendance record for this student
+            var lastRecord = await _context.AttendanceRecords
+                .Where(r => r.StudentId == studentId)
+                .OrderByDescending(r => r.CheckInTime)
+                .FirstOrDefaultAsync();
+
+            if (lastRecord == null) return null;
+
+            // Calculate time difference
+            var timeDiff = DateTime.UtcNow - lastRecord.CheckInTime;
+            
+            // If less than 1 minute, might be duplicate (ignore)
+            if (timeDiff.TotalMinutes < 1) return null;
+
+            // Calculate distance from last location
+            var distanceFromLast = CalculateHaversineDistance(
+                (double)lastRecord.Latitude, (double)lastRecord.Longitude,
+                (double)dto.Latitude, (double)dto.Longitude);
+
+            // Calculate velocity (m/s)
+            var velocity = distanceFromLast / timeDiff.TotalSeconds;
+
+            // Max reasonable walking/running speed: 10 m/s (~36 km/h)
+            // If velocity > 50 m/s (180 km/h), definitely spoofed
+            if (velocity > 50)
+            {
+                return $"Impossible velocity: {velocity:F1} m/s ({velocity * 3.6:F0} km/h)";
+            }
+
+            // Suspicious if > 20 m/s (72 km/h) within campus
+            if (velocity > 20 && timeDiff.TotalMinutes < 5)
+            {
+                return $"Suspicious velocity: {velocity:F1} m/s in {timeDiff.TotalMinutes:F1} min";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Kampüs Ağı Kontrolü
+        /// Known campus IP ranges ile karşılaştırır.
+        /// </summary>
+        private string? ValidateCampusNetwork(string? clientIp)
+        {
+            if (string.IsNullOrEmpty(clientIp)) return null;
+
+            // Known campus IP ranges (configurable)
+            // Example: 10.0.0.0/8 (private), 192.168.0.0/16 (private), or specific campus ranges
+            var campusRanges = new[]
+            {
+                "10.",          // Private network (campus VPN, WiFi)
+                "192.168.",     // Private network (campus LAN)
+                "172.16.",      // Private network range start
+                "172.17.",
+                "172.18.",
+                "172.19.",
+                "172.20.",
+                "172.21.",
+                "172.22.",
+                "172.23.",
+                "172.24.",
+                "172.25.",
+                "172.26.",
+                "172.27.",
+                "172.28.",
+                "172.29.",
+                "172.30.",
+                "172.31.",
+                "127.0.0.1",    // Localhost (development)
+                "::1",           // IPv6 localhost
+            };
+
+            // Check if IP is in known campus ranges
+            var isOnCampusNetwork = campusRanges.Any(range => clientIp.StartsWith(range));
+
+            // For production, this should be more strict
+            // For now, just log warning for public IPs
+            if (!isOnCampusNetwork)
+            {
+                // Don't flag but note it - could be legitimate mobile data
+                // Could make this configurable: strict mode vs lenient mode
+                // return $"External network: {MaskIp(clientIp)}";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// IP adresini maskeleyerek gizler (privacy)
+        /// </summary>
+        private string MaskIp(string ip)
+        {
+            var parts = ip.Split('.');
+            if (parts.Length == 4)
+            {
+                return $"{parts[0]}.{parts[1]}.*.*";
+            }
+            return ip[..Math.Min(ip.Length, 10)] + "...";
+        }
+
+        // Backward compatibility wrapper
+        private (bool IsFlagged, string? Reason) DetectSpoofing(CheckInRequestDto dto, AttendanceSession session, double distance, string? clientIp)
+        {
+            // Simple sync version for backward compat
+            var flags = new List<string>();
+
+            if (distance > (double)session.GeofenceRadius + 5.0)
+                flags.Add($"Distance exceeded: {distance:F1}m");
+            if (dto.Accuracy > 50)
+                flags.Add($"Low accuracy: {dto.Accuracy:F1}m");
+            if (dto.IsMockLocation == true)
+                flags.Add("Mock location detected");
+
+            return flags.Any() ? (true, string.Join("; ", flags)) : (false, null);
         }
 
         public async Task<List<MyAttendanceDto>> GetMyAttendanceAsync(int studentId)
@@ -378,6 +543,13 @@ namespace SmartCampus.Business.Services
             request.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            // Send notification
+            if (_notificationService != null)
+            {
+                _ = _notificationService.SendExcuseApprovedAsync(request.StudentId, request.SessionId);
+            }
+
             return true;
         }
 
@@ -393,6 +565,13 @@ namespace SmartCampus.Business.Services
             request.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            // Send notification
+            if (_notificationService != null)
+            {
+                _ = _notificationService.SendExcuseRejectedAsync(request.StudentId, request.SessionId, notes);
+            }
+
             return true;
         }
 

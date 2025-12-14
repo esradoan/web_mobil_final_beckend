@@ -368,6 +368,10 @@ builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IGradeCalculationService, GradeCalculationService>();
 builder.Services.AddScoped<ITranscriptPdfService, TranscriptPdfService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// Background Services - Cron Jobs
+builder.Services.AddHostedService<AbsenceWarningService>();
 
 // Configure JWT Authentication
 // Öncelik: Environment variables > appsettings.json
