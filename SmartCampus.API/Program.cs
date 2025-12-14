@@ -370,6 +370,7 @@ builder.Services.AddScoped<IGradeCalculationService, GradeCalculationService>();
 builder.Services.AddScoped<ITranscriptPdfService, TranscriptPdfService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
+builder.Services.AddScoped<IAttendanceAnalyticsService, AttendanceAnalyticsService>();
 
 // SignalR - Real-time WebSocket
 builder.Services.AddSignalR();
