@@ -22,6 +22,8 @@ namespace SmartCampus.Business.DTOs
         public string Status { get; set; } = string.Empty;
         public int AttendedCount { get; set; }
         public int TotalStudents { get; set; }
+        public ClassroomDto? Classroom { get; set; }
+        public CourseSectionDto? Section { get; set; }
     }
 
     public class CreateAttendanceSessionDto
@@ -46,6 +48,7 @@ namespace SmartCampus.Business.DTOs
         public DateTime? Timestamp { get; set; } // GPS timestamp for velocity check
         public decimal? Altitude { get; set; } // For additional validation
         public decimal? Speed { get; set; } // Device reported speed (m/s)
+        public string? DeviceType { get; set; } // "mobile" or "desktop" - for accuracy threshold adjustment
     }
 
     public class CheckInResponseDto
@@ -61,8 +64,10 @@ namespace SmartCampus.Business.DTOs
     public class MyAttendanceDto
     {
         public int CourseId { get; set; }
+        public int SectionId { get; set; }
         public string CourseCode { get; set; } = string.Empty;
         public string CourseName { get; set; } = string.Empty;
+        public string SectionNumber { get; set; } = string.Empty;
         public int TotalSessions { get; set; }
         public int AttendedSessions { get; set; }
         public int ExcusedAbsences { get; set; }

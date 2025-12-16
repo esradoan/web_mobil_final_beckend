@@ -11,5 +11,6 @@ namespace SmartCampus.Business.DTOs
         public UserRole Role { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public bool IsEmailVerified { get; set; }
+        public int? DepartmentId { get; set; } // Student veya Faculty için bölüm ID'si
     }
 }

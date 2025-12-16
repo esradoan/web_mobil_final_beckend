@@ -1,3 +1,5 @@
+using SmartCampus.Entities;
+
 namespace SmartCampus.Business.DTOs
 {
     // ==================== COURSE DTOs ====================
@@ -11,6 +13,9 @@ namespace SmartCampus.Business.DTOs
         public int Credits { get; set; }
         public int Ects { get; set; }
         public string? SyllabusUrl { get; set; }
+        public CourseType Type { get; set; } = CourseType.Required;
+        public bool AllowCrossDepartment { get; set; } = false;
+        public int? DepartmentId { get; set; }
         public DepartmentDto? Department { get; set; }
         public List<CourseDto>? Prerequisites { get; set; }
         public List<CourseSectionDto>? Sections { get; set; }
@@ -24,6 +29,8 @@ namespace SmartCampus.Business.DTOs
         public int Credits { get; set; }
         public int Ects { get; set; }
         public string? SyllabusUrl { get; set; }
+        public CourseType Type { get; set; } = CourseType.Required;
+        public bool AllowCrossDepartment { get; set; } = false;
         public int DepartmentId { get; set; }
         public List<int>? PrerequisiteIds { get; set; }
     }
@@ -35,6 +42,8 @@ namespace SmartCampus.Business.DTOs
         public int? Credits { get; set; }
         public int? Ects { get; set; }
         public string? SyllabusUrl { get; set; }
+        public CourseType? Type { get; set; }
+        public bool? AllowCrossDepartment { get; set; }
         public List<int>? PrerequisiteIds { get; set; }
     }
 
@@ -63,7 +72,9 @@ namespace SmartCampus.Business.DTOs
         public int EnrolledCount { get; set; }
         public int AvailableSeats => Capacity - EnrolledCount;
         public string? ScheduleJson { get; set; }
+        public int? ClassroomId { get; set; }
         public ClassroomDto? Classroom { get; set; }
+        public CourseDto? Course { get; set; }
     }
 
     public class CreateSectionDto
@@ -98,4 +109,71 @@ namespace SmartCampus.Business.DTOs
         public decimal Longitude { get; set; }
         public string? FeaturesJson { get; set; }
     }
+
+    // ==================== COURSE APPLICATION DTOs ====================
+    
+    public class CreateCourseApplicationDto
+    {
+        public int CourseId { get; set; }
+    }
+
+    public class CourseApplicationDto
+    {
+        public int Id { get; set; }
+        public int CourseId { get; set; }
+        public CourseDto? Course { get; set; }
+        public int InstructorId { get; set; }
+        public string InstructorName { get; set; } = string.Empty;
+        public string InstructorEmail { get; set; } = string.Empty;
+        public ApplicationStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ProcessedAt { get; set; }
+        public int? ProcessedBy { get; set; }
+        public string? ProcessedByName { get; set; }
+        public string? RejectionReason { get; set; }
+    }
+
+    public class ApplicationListResponseDto
+    {
+        public List<CourseApplicationDto> Data { get; set; } = new();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    // ==================== STUDENT COURSE APPLICATION DTOs ====================
+    
+    public class CreateStudentCourseApplicationDto
+    {
+        public int CourseId { get; set; }
+        public int SectionId { get; set; }
+    }
+
+    public class StudentCourseApplicationDto
+    {
+        public int Id { get; set; }
+        public int CourseId { get; set; }
+        public CourseDto? Course { get; set; }
+        public int SectionId { get; set; }
+        public CourseSectionDto? Section { get; set; }
+        public int StudentId { get; set; }
+        public string StudentName { get; set; } = string.Empty;
+        public string StudentEmail { get; set; } = string.Empty;
+        public string StudentNumber { get; set; } = string.Empty;
+        public ApplicationStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ProcessedAt { get; set; }
+        public int? ProcessedBy { get; set; }
+        public string? ProcessedByName { get; set; }
+        public string? RejectionReason { get; set; }
+    }
+
+    public class StudentApplicationListResponseDto
+    {
+        public List<StudentCourseApplicationDto> Data { get; set; } = new();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
 }

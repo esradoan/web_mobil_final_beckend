@@ -163,6 +163,29 @@ namespace SmartCampus.API.Controllers
         }
 
         /// <summary>
+        /// Aktif yoklama oturumlarım (Student) - Kayıtlı olduğum derslerin aktif oturumları
+        /// </summary>
+        [HttpGet("sessions/active")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetActiveSessions()
+        {
+            try
+            {
+                var userId = GetUserId();
+                Console.WriteLine($"\n🌐 GetActiveSessions endpoint called - UserId: {userId}");
+                var result = await _attendanceService.GetActiveSessionsForStudentAsync(userId);
+                Console.WriteLine($"✅ Returning {result.Count} active sessions");
+                return Ok(new { data = result });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error in GetActiveSessions: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { message = ex.Message, error = "GetActiveSessionsFailed" });
+            }
+        }
+
+        /// <summary>
         /// Yoklama durumum (Student)
         /// </summary>
         [HttpGet("my-attendance")]

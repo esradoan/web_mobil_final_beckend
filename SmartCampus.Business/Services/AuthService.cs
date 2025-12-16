@@ -123,7 +123,22 @@ namespace SmartCampus.Business.Services
                 throw new Exception($"Registration failed: {errors}");
             }
 
-            // 5. Create Role-Specific Entry (now we know everything is valid)
+            // 5. Assign Role to User in Identity (CRITICAL: Must be done before creating role-specific entry)
+            string roleName = registerDto.Role == UserRole.Student ? "Student" :
+                             registerDto.Role == UserRole.Faculty ? "Faculty" :
+                             registerDto.Role == UserRole.Admin ? "Admin" : "Student";
+            
+            var roleResult = await _userManager.AddToRoleAsync(user, roleName);
+            if (!roleResult.Succeeded)
+            {
+                // Rollback: Delete the user if role assignment fails
+                await _userManager.DeleteAsync(user);
+                var roleErrors = string.Join(", ", roleResult.Errors.Select(e => e.Description));
+                throw new Exception($"Failed to assign role '{roleName}': {roleErrors}");
+            }
+            Console.WriteLine($"✅ Role '{roleName}' assigned to user {user.Id}");
+
+            // 6. Create Role-Specific Entry (now we know everything is valid)
             try
             {
             if (registerDto.Role == UserRole.Student)
@@ -161,7 +176,13 @@ namespace SmartCampus.Business.Services
                 {
                     // Ignore deletion errors, log in production
                 }
-                throw new Exception($"Failed to create role-specific entry: {ex.Message}");
+                
+                // Log inner exception for debugging
+                var innerException = ex.InnerException != null ? $" Inner: {ex.InnerException.Message}" : "";
+                Console.WriteLine($"❌ ERROR creating role-specific entry: {ex.Message}{innerException}");
+                Console.WriteLine($"   Stack trace: {ex.StackTrace}");
+                
+                throw new Exception($"Failed to create role-specific entry: {ex.Message}{innerException}. Please check if Department exists in database.");
             }
 
             // 5. Generate Email Verification Token
@@ -498,12 +519,25 @@ namespace SmartCampus.Business.Services
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
 
+            // Get user roles from Identity
+            var roles = await _userManager.GetRolesAsync(user);
+            Console.WriteLine($"🔑 Generating token for user {user.Id} with roles: [{string.Join(", ", roles)}]");
+
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+            
+            // Add role claims to JWT token (CRITICAL for [Authorize(Roles = "...")] to work)
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim("role", role)); // Also add as "role" for compatibility
+            }
+            
+            Console.WriteLine($"✅ Added {roles.Count} role claim(s) to JWT token");
             
             var tokenDescriptor = new SecurityTokenDescriptor
             {

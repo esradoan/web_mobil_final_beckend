@@ -24,11 +24,18 @@ namespace SmartCampus.DataAccess
         public DbSet<CoursePrerequisite> CoursePrerequisites { get; set; } = null!;
         public DbSet<CourseSection> CourseSections { get; set; } = null!;
         public DbSet<Enrollment> Enrollments { get; set; } = null!;
+        public DbSet<DepartmentCourseRequirement> DepartmentCourseRequirements { get; set; } = null!;
         
         // Part 2 - Attendance System
         public DbSet<AttendanceSession> AttendanceSessions { get; set; } = null!;
         public DbSet<AttendanceRecord> AttendanceRecords { get; set; } = null!;
         public DbSet<ExcuseRequest> ExcuseRequests { get; set; } = null!;
+        
+        // Part 2 - Course Applications
+        public DbSet<CourseApplication> CourseApplications { get; set; } = null!;
+        
+        // Part 2 - Student Course Applications
+        public DbSet<StudentCourseApplication> StudentCourseApplications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -97,6 +104,23 @@ namespace SmartCampus.DataAccess
                 .WithMany(c => c.PrerequisiteFor)
                 .HasForeignKey(cp => cp.PrerequisiteCourseId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // DepartmentCourseRequirement - Department & Course
+            modelBuilder.Entity<DepartmentCourseRequirement>()
+                .HasOne(dcr => dcr.Department)
+                .WithMany()
+                .HasForeignKey(dcr => dcr.DepartmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DepartmentCourseRequirement>()
+                .HasOne(dcr => dcr.Course)
+                .WithMany(c => c.DepartmentRequirements)
+                .HasForeignKey(dcr => dcr.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DepartmentCourseRequirement>()
+                .HasIndex(dcr => new { dcr.DepartmentId, dcr.CourseId })
+                .IsUnique();
 
             // CourseSection - Course (N:1)
             modelBuilder.Entity<CourseSection>()
@@ -191,6 +215,58 @@ namespace SmartCampus.DataAccess
                 .HasForeignKey(er => er.ReviewedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // CourseApplication
+            modelBuilder.Entity<CourseApplication>()
+                .HasOne(ca => ca.Course)
+                .WithMany()
+                .HasForeignKey(ca => ca.CourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CourseApplication>()
+                .HasOne(ca => ca.Instructor)
+                .WithMany()
+                .HasForeignKey(ca => ca.InstructorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CourseApplication>()
+                .HasOne(ca => ca.ProcessedByUser)
+                .WithMany()
+                .HasForeignKey(ca => ca.ProcessedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CourseApplication>()
+                .HasIndex(ca => new { ca.CourseId, ca.InstructorId })
+                .IsUnique();
+
+            // StudentCourseApplication
+            modelBuilder.Entity<StudentCourseApplication>()
+                .HasOne(sca => sca.Course)
+                .WithMany()
+                .HasForeignKey(sca => sca.CourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<StudentCourseApplication>()
+                .HasOne(sca => sca.Section)
+                .WithMany()
+                .HasForeignKey(sca => sca.SectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<StudentCourseApplication>()
+                .HasOne(sca => sca.Student)
+                .WithMany()
+                .HasForeignKey(sca => sca.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<StudentCourseApplication>()
+                .HasOne(sca => sca.ProcessedByUser)
+                .WithMany()
+                .HasForeignKey(sca => sca.ProcessedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<StudentCourseApplication>()
+                .HasIndex(sca => new { sca.SectionId, sca.StudentId })
+                .IsUnique();
+
             // ==================== SEED DATA ====================
             var seedDate = new System.DateTime(2024, 1, 1);
             
@@ -273,21 +349,21 @@ namespace SmartCampus.DataAccess
 
             // Courses Seed Data
             modelBuilder.Entity<Course>().HasData(
-                // Bilgisayar Mühendisliği Dersleri
-                new Course { Id = 1, Code = "CENG101", Name = "Programlamaya Giriş", Description = "Temel programlama kavramları", Credits = 4, Ects = 6, DepartmentId = 1, CreatedAt = seedDate },
-                new Course { Id = 2, Code = "CENG102", Name = "Nesne Yönelimli Programlama", Description = "OOP kavramları", Credits = 4, Ects = 6, DepartmentId = 1, CreatedAt = seedDate },
-                new Course { Id = 3, Code = "CENG201", Name = "Veri Yapıları", Description = "Temel veri yapıları ve algoritmalar", Credits = 4, Ects = 6, DepartmentId = 1, CreatedAt = seedDate },
-                new Course { Id = 4, Code = "CENG301", Name = "Veritabanı Yönetim Sistemleri", Description = "SQL ve veritabanı tasarımı", Credits = 3, Ects = 5, DepartmentId = 1, CreatedAt = seedDate },
-                new Course { Id = 5, Code = "CENG302", Name = "Web Programlama", Description = "Frontend ve backend geliştirme", Credits = 3, Ects = 5, DepartmentId = 1, CreatedAt = seedDate },
+                // Bilgisayar Mühendisliği Dersleri (Zorunlu)
+                new Course { Id = 1, Code = "CENG101", Name = "Programlamaya Giriş", Description = "Temel programlama kavramları", Credits = 4, Ects = 6, DepartmentId = 1, Type = CourseType.Required, AllowCrossDepartment = false, CreatedAt = seedDate },
+                new Course { Id = 2, Code = "CENG102", Name = "Nesne Yönelimli Programlama", Description = "OOP kavramları", Credits = 4, Ects = 6, DepartmentId = 1, Type = CourseType.Required, AllowCrossDepartment = false, CreatedAt = seedDate },
+                new Course { Id = 3, Code = "CENG201", Name = "Veri Yapıları", Description = "Temel veri yapıları ve algoritmalar", Credits = 4, Ects = 6, DepartmentId = 1, Type = CourseType.Required, AllowCrossDepartment = false, CreatedAt = seedDate },
+                new Course { Id = 4, Code = "CENG301", Name = "Veritabanı Yönetim Sistemleri", Description = "SQL ve veritabanı tasarımı", Credits = 3, Ects = 5, DepartmentId = 1, Type = CourseType.Required, AllowCrossDepartment = false, CreatedAt = seedDate },
+                new Course { Id = 5, Code = "CENG302", Name = "Web Programlama", Description = "Frontend ve backend geliştirme", Credits = 3, Ects = 5, DepartmentId = 1, Type = CourseType.Elective, AllowCrossDepartment = true, CreatedAt = seedDate },
                 
-                // Matematik Dersleri
-                new Course { Id = 6, Code = "MATH101", Name = "Matematik I", Description = "Kalkülüs I", Credits = 4, Ects = 6, DepartmentId = 16, CreatedAt = seedDate },
-                new Course { Id = 7, Code = "MATH102", Name = "Matematik II", Description = "Kalkülüs II", Credits = 4, Ects = 6, DepartmentId = 16, CreatedAt = seedDate },
-                new Course { Id = 8, Code = "MATH201", Name = "Lineer Cebir", Description = "Matrisler ve vektörler", Credits = 3, Ects = 5, DepartmentId = 16, CreatedAt = seedDate },
+                // Matematik Dersleri (Genel Seçmeli - Tüm bölümlerden alınabilir)
+                new Course { Id = 6, Code = "MATH101", Name = "Matematik I", Description = "Kalkülüs I", Credits = 4, Ects = 6, DepartmentId = 16, Type = CourseType.GeneralElective, AllowCrossDepartment = true, CreatedAt = seedDate },
+                new Course { Id = 7, Code = "MATH102", Name = "Matematik II", Description = "Kalkülüs II", Credits = 4, Ects = 6, DepartmentId = 16, Type = CourseType.GeneralElective, AllowCrossDepartment = true, CreatedAt = seedDate },
+                new Course { Id = 8, Code = "MATH201", Name = "Lineer Cebir", Description = "Matrisler ve vektörler", Credits = 3, Ects = 5, DepartmentId = 16, Type = CourseType.GeneralElective, AllowCrossDepartment = true, CreatedAt = seedDate },
                 
-                // Fizik Dersleri
-                new Course { Id = 9, Code = "PHYS101", Name = "Fizik I", Description = "Mekanik", Credits = 4, Ects = 6, DepartmentId = 17, CreatedAt = seedDate },
-                new Course { Id = 10, Code = "PHYS102", Name = "Fizik II", Description = "Elektrik ve Manyetizma", Credits = 4, Ects = 6, DepartmentId = 17, CreatedAt = seedDate }
+                // Fizik Dersleri (Genel Seçmeli)
+                new Course { Id = 9, Code = "PHYS101", Name = "Fizik I", Description = "Mekanik", Credits = 4, Ects = 6, DepartmentId = 17, Type = CourseType.GeneralElective, AllowCrossDepartment = true, CreatedAt = seedDate },
+                new Course { Id = 10, Code = "PHYS102", Name = "Fizik II", Description = "Elektrik ve Manyetizma", Credits = 4, Ects = 6, DepartmentId = 17, Type = CourseType.GeneralElective, AllowCrossDepartment = true, CreatedAt = seedDate }
             );
 
             // Course Prerequisites Seed Data

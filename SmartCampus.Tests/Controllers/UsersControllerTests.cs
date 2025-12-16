@@ -1,10 +1,14 @@
 #nullable disable
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using SmartCampus.API.Controllers;
 using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
+using SmartCampus.DataAccess;
+using SmartCampus.Entities;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Claims;
@@ -17,12 +21,25 @@ namespace SmartCampus.Tests.Controllers
     public class UsersControllerTests
     {
         private readonly Mock<IUserService> _mockUserService;
+        private readonly Mock<CampusDbContext> _mockContext;
+        private readonly Mock<UserManager<User>> _mockUserManager;
         private readonly UsersController _controller;
 
         public UsersControllerTests()
         {
             _mockUserService = new Mock<IUserService>();
-            _controller = new UsersController(_mockUserService.Object);
+            
+            // Mock DbContext
+            var options = new DbContextOptionsBuilder<CampusDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb")
+                .Options;
+            _mockContext = new Mock<CampusDbContext>(options);
+            
+            // Mock UserManager
+            var store = new Mock<IUserStore<User>>();
+            _mockUserManager = new Mock<UserManager<User>>(store.Object, null, null, null, null, null, null, null, null);
+            
+            _controller = new UsersController(_mockUserService.Object, _mockContext.Object, _mockUserManager.Object);
         }
 
         private void SetupHttpContext(string userId)

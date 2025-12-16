@@ -16,6 +16,7 @@ namespace SmartCampus.Business.Services
         Task<CourseSectionDto?> GetSectionByIdAsync(int id);
         Task<CourseSectionDto> CreateSectionAsync(CreateSectionDto dto);
         Task<CourseSectionDto?> UpdateSectionAsync(int id, UpdateSectionDto dto);
+        Task<bool> DeleteSectionAsync(int id);
     }
 
     public class CourseService : ICourseService
@@ -65,7 +66,7 @@ namespace SmartCampus.Business.Services
 
             return new PaginatedResponse<CourseDto>
             {
-                Data = courses.Select(c => MapToCourseDto(c)).ToList(),
+                Data = (await Task.WhenAll(courses.Select(c => MapToCourseDtoAsync(c)))).ToList(),
                 Pagination = new PaginationInfo
                 {
                     Page = page,
@@ -85,7 +86,7 @@ namespace SmartCampus.Business.Services
                     .ThenInclude(s => s.Instructor)
                 .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
-            return course == null ? null : MapToCourseDto(course, includeSections: true);
+            return course == null ? null : await MapToCourseDtoAsync(course, includeSections: true);
         }
 
         public async Task<CourseDto> CreateCourseAsync(CreateCourseDto dto)
@@ -98,7 +99,9 @@ namespace SmartCampus.Business.Services
                 Credits = dto.Credits,
                 Ects = dto.Ects,
                 SyllabusUrl = dto.SyllabusUrl,
-                DepartmentId = dto.DepartmentId
+                DepartmentId = dto.DepartmentId,
+                Type = dto.Type,
+                AllowCrossDepartment = dto.AllowCrossDepartment
             };
 
             _context.Courses.Add(course);
@@ -118,7 +121,8 @@ namespace SmartCampus.Business.Services
                 await _context.SaveChangesAsync();
             }
 
-            return await GetCourseByIdAsync(course.Id) ?? MapToCourseDto(course);
+            var createdCourse = await GetCourseByIdAsync(course.Id);
+            return createdCourse ?? await MapToCourseDtoAsync(course);
         }
 
         public async Task<CourseDto?> UpdateCourseAsync(int id, UpdateCourseDto dto)
@@ -131,6 +135,8 @@ namespace SmartCampus.Business.Services
             if (dto.Credits.HasValue) course.Credits = dto.Credits.Value;
             if (dto.Ects.HasValue) course.Ects = dto.Ects.Value;
             if (dto.SyllabusUrl != null) course.SyllabusUrl = dto.SyllabusUrl;
+            if (dto.Type.HasValue) course.Type = dto.Type.Value;
+            if (dto.AllowCrossDepartment.HasValue) course.AllowCrossDepartment = dto.AllowCrossDepartment.Value;
             course.UpdatedAt = DateTime.UtcNow;
 
             // Update prerequisites
@@ -184,7 +190,14 @@ namespace SmartCampus.Business.Services
                 query = query.Where(s => s.CourseId == courseId.Value);
 
             var sections = await query.ToListAsync();
-            return sections.Select(s => MapToSectionDto(s)).ToList();
+            var sectionDtos = new List<CourseSectionDto>();
+            foreach (var section in sections)
+            {
+                var enrolledCount = await _context.Enrollments
+                    .CountAsync(e => e.SectionId == section.Id && e.Status == "enrolled");
+                sectionDtos.Add(await MapToSectionDtoAsync(section, enrolledCount));
+            }
+            return sectionDtos;
         }
 
         public async Task<CourseSectionDto?> GetSectionByIdAsync(int id)
@@ -195,7 +208,10 @@ namespace SmartCampus.Business.Services
                 .Include(s => s.Classroom)
                 .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
 
-            return section == null ? null : MapToSectionDto(section);
+            if (section == null) return null;
+            var enrolledCount = await _context.Enrollments
+                .CountAsync(e => e.SectionId == section.Id && e.Status == "enrolled");
+            return await MapToSectionDtoAsync(section, enrolledCount);
         }
 
         public async Task<CourseSectionDto> CreateSectionAsync(CreateSectionDto dto)
@@ -215,7 +231,9 @@ namespace SmartCampus.Business.Services
             _context.CourseSections.Add(section);
             await _context.SaveChangesAsync();
 
-            return await GetSectionByIdAsync(section.Id) ?? MapToSectionDto(section);
+            var enrolledCount = await _context.Enrollments
+                .CountAsync(e => e.SectionId == section.Id && e.Status == "enrolled");
+            return await MapToSectionDtoAsync(section, enrolledCount);
         }
 
         public async Task<CourseSectionDto?> UpdateSectionAsync(int id, UpdateSectionDto dto)
@@ -233,9 +251,20 @@ namespace SmartCampus.Business.Services
             return await GetSectionByIdAsync(id);
         }
 
+        public async Task<bool> DeleteSectionAsync(int id)
+        {
+            var section = await _context.CourseSections.FindAsync(id);
+            if (section == null || section.IsDeleted) return false;
+
+            section.IsDeleted = true;
+            section.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         // ==================== MAPPERS ====================
 
-        private CourseDto MapToCourseDto(Course course, bool includeSections = false)
+        private async Task<CourseDto> MapToCourseDtoAsync(Course course, bool includeSections = false)
         {
             return new CourseDto
             {
@@ -246,6 +275,8 @@ namespace SmartCampus.Business.Services
                 Credits = course.Credits,
                 Ects = course.Ects,
                 SyllabusUrl = course.SyllabusUrl,
+                Type = course.Type,
+                AllowCrossDepartment = course.AllowCrossDepartment,
                 Department = course.Department == null ? null : new DepartmentDto
                 {
                     Id = course.Department.Id,
@@ -259,11 +290,11 @@ namespace SmartCampus.Business.Services
                     Code = p.PrerequisiteCourse?.Code ?? "",
                     Name = p.PrerequisiteCourse?.Name ?? ""
                 }).ToList(),
-                Sections = includeSections ? course.Sections?.Select(s => MapToSectionDto(s)).ToList() : null
+                Sections = includeSections ? await MapSectionsToDtoAsync(course.Sections) : null
             };
         }
 
-        private CourseSectionDto MapToSectionDto(CourseSection section)
+        private async Task<CourseSectionDto> MapToSectionDtoAsync(CourseSection section, int enrolledCount)
         {
             return new CourseSectionDto
             {
@@ -275,9 +306,11 @@ namespace SmartCampus.Business.Services
                 Semester = section.Semester,
                 Year = section.Year,
                 InstructorId = section.InstructorId,
-                InstructorName = section.Instructor?.FirstName + " " + section.Instructor?.LastName,
+                InstructorName = section.Instructor != null 
+                    ? $"{section.Instructor.FirstName} {section.Instructor.LastName}" 
+                    : "",
                 Capacity = section.Capacity,
-                EnrolledCount = section.EnrolledCount,
+                EnrolledCount = enrolledCount,
                 ScheduleJson = section.ScheduleJson,
                 Classroom = section.Classroom == null ? null : new ClassroomDto
                 {
@@ -290,6 +323,20 @@ namespace SmartCampus.Business.Services
                     FeaturesJson = section.Classroom.FeaturesJson
                 }
             };
+        }
+
+        private async Task<List<CourseSectionDto>> MapSectionsToDtoAsync(IEnumerable<CourseSection>? sections)
+        {
+            if (sections == null) return new List<CourseSectionDto>();
+            
+            var sectionDtos = new List<CourseSectionDto>();
+            foreach (var section in sections)
+            {
+                var enrolledCount = await _context.Enrollments
+                    .CountAsync(e => e.SectionId == section.Id && e.Status == "enrolled");
+                sectionDtos.Add(await MapToSectionDtoAsync(section, enrolledCount));
+            }
+            return sectionDtos;
         }
     }
 }

@@ -36,27 +36,77 @@ namespace SmartCampus.Business.Services
 
         public async Task<EnrollmentDto> EnrollAsync(int studentId, int sectionId)
         {
+            // Check if student is active
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s => s.UserId == studentId);
+            
+            if (student == null)
+            {
+                throw new InvalidOperationException("Öğrenci bulunamadı.");
+            }
+            
+            if (!student.IsActive)
+            {
+                throw new InvalidOperationException("Pasif öğrenciler ders kaydı yapamaz.");
+            }
+            
+            return await EnrollAsyncInternal(studentId, sectionId);
+        }
+        
+        private async Task<EnrollmentDto> EnrollAsyncInternal(int studentId, int sectionId)
+        {
             var section = await _context.CourseSections
                 .Include(s => s.Course)
                     .ThenInclude(c => c!.Prerequisites)
+                .Include(s => s.Course)
+                    .ThenInclude(c => c!.Department)
                 .FirstOrDefaultAsync(s => s.Id == sectionId && !s.IsDeleted);
 
             if (section == null)
                 throw new Exception("Section not found");
 
-            // 1. Check if already enrolled
+            // Get student with department
+            var student = await _context.Students
+                .Include(s => s.Department)
+                .FirstOrDefaultAsync(s => s.UserId == studentId);
+
+            if (student == null)
+                throw new InvalidOperationException("Öğrenci bulunamadı.");
+
+            // 1. Check cross-department enrollment
+            if (section.Course!.DepartmentId != student.DepartmentId)
+            {
+                // Farklı bölümden ders alınıyor
+                if (section.Course.Type == CourseType.GeneralElective)
+                {
+                    // Genel seçmeli ders - izin ver
+                }
+                else if (section.Course.AllowCrossDepartment)
+                {
+                    // Ders cross-department'a izin veriyor - izin ver
+                }
+                else
+                {
+                    // Ders cross-department'a izin vermiyor - hata
+                    throw new InvalidOperationException(
+                        $"Bu ders ({section.Course.Code}) sadece {section.Course.Department?.Name} bölümü öğrencileri için açıktır. " +
+                        $"Farklı bölümden ders almak için genel seçmeli dersleri tercih ediniz.");
+                }
+            }
+
+            // 2. Check if already enrolled
             var existingEnrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.StudentId == studentId && e.SectionId == sectionId);
+                .FirstOrDefaultAsync(e => e.StudentId == student.Id && e.SectionId == sectionId);
             if (existingEnrollment != null)
                 throw new InvalidOperationException("Already enrolled in this section");
 
-            // 2. Check prerequisites
-            await CheckPrerequisitesAsync(section.Course!.Id, studentId);
+            // 3. Check prerequisites
+            await CheckPrerequisitesAsync(section.Course.Id, student.Id);
 
-            // 3. Check schedule conflict
-            await CheckScheduleConflictAsync(studentId, section);
+            // 4. Check schedule conflict
+            await CheckScheduleConflictAsync(student.Id, section);
 
-            // 4. Check capacity (atomic update)
+            // 5. Check capacity (atomic update)
             var affected = await _context.CourseSections
                 .Where(s => s.Id == sectionId && s.EnrolledCount < s.Capacity)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.EnrolledCount, x => x.EnrolledCount + 1));
@@ -64,10 +114,10 @@ namespace SmartCampus.Business.Services
             if (affected == 0)
                 throw new InvalidOperationException("Section is full");
 
-            // 5. Create enrollment
+            // 6. Create enrollment
             var enrollment = new Enrollment
             {
-                StudentId = studentId,
+                StudentId = student.Id, // Student entity'sinin Id'si, userId değil!
                 SectionId = sectionId,
                 Status = "enrolled",
                 EnrollmentDate = DateTime.UtcNow
@@ -76,7 +126,7 @@ namespace SmartCampus.Business.Services
             _context.Enrollments.Add(enrollment);
             await _context.SaveChangesAsync();
 
-            // 6. Send notification
+            // 7. Send notification
             if (_notificationService != null)
             {
                 _ = _notificationService.SendEnrollmentConfirmationAsync(studentId, sectionId);
@@ -214,13 +264,39 @@ namespace SmartCampus.Business.Services
 
         public async Task<List<MyCoursesDto>> GetMyCoursesAsync(int studentId)
         {
+            Console.WriteLine($"\n🔍 GetMyCoursesAsync called with studentId (userId): {studentId}");
+            
+            // studentId userId'dir, Student entity'sini bul
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s => s.UserId == studentId);
+            
+            if (student == null)
+            {
+                Console.WriteLine($"❌ Student not found for userId: {studentId}");
+                return new List<MyCoursesDto>();
+            }
+
+            Console.WriteLine($"✅ Student found: Id={student.Id}, UserId={student.UserId}");
+            
+            // Debug: Tüm enrollment'ları göster
+            var allEnrollmentsDebug = await _context.Enrollments
+                .Where(e => e.StudentId == student.Id)
+                .ToListAsync();
+            Console.WriteLine($"📋 All enrollments for student {student.Id} (StudentId, any status): {allEnrollmentsDebug.Count}");
+            foreach (var e in allEnrollmentsDebug)
+            {
+                Console.WriteLine($"  - Enrollment: Id={e.Id}, SectionId={e.SectionId}, Status='{e.Status}', StudentId={e.StudentId}");
+            }
+            
             var enrollments = await _context.Enrollments
                 .Include(e => e.Section)
                     .ThenInclude(s => s!.Course)
                 .Include(e => e.Section)
                     .ThenInclude(s => s!.Instructor)
-                .Where(e => e.StudentId == studentId && e.Status == "enrolled")
+                .Where(e => e.StudentId == student.Id && e.Status == "enrolled")
                 .ToListAsync();
+            
+            Console.WriteLine($"✅ GetMyCoursesAsync returning {enrollments.Count} enrollments with status='enrolled'");
 
             var result = new List<MyCoursesDto>();
             foreach (var e in enrollments)
@@ -240,31 +316,67 @@ namespace SmartCampus.Business.Services
 
         public async Task<List<StudentEnrollmentDto>> GetSectionStudentsAsync(int sectionId)
         {
-            var enrollments = await _context.Enrollments
-                .Include(e => e.Student)
-                .Where(e => e.SectionId == sectionId && e.Status != "dropped")
+            Console.WriteLine($"\n🔍 GetSectionStudentsAsync called with sectionId: {sectionId}");
+            
+            // Debug: Tüm enrollment'ları kontrol et (status kontrolü olmadan)
+            var allEnrollments = await _context.Enrollments
+                .Where(e => e.SectionId == sectionId)
                 .ToListAsync();
-
-            var studentIdsList = new List<int>();
-            foreach (var en in enrollments)
+            Console.WriteLine($"📋 All enrollments for section {sectionId} (any status): {allEnrollments.Count}");
+            foreach (var e in allEnrollments)
             {
-                studentIdsList.Add(en.StudentId);
+                Console.WriteLine($"  - Enrollment Id={e.Id}: StudentId={e.StudentId}, Status='{e.Status}'");
             }
             
-            var studentList = await _context.Students
-                .Where(s => studentIdsList.Contains(s.UserId))
+            // Get enrollments with status "enrolled" (not "dropped")
+            var enrollments = await _context.Enrollments
+                .Include(e => e.Section)
+                    .ThenInclude(s => s!.Course)
+                .Where(e => e.SectionId == sectionId && e.Status == "enrolled")
                 .ToListAsync();
-            var students = studentList.ToDictionary(s => s.UserId);
+
+            Console.WriteLine($"✅ Enrollments with status='enrolled': {enrollments.Count}");
+
+            if (!enrollments.Any())
+            {
+                Console.WriteLine("⚠️ No enrollments found with status='enrolled'. Trying with status != 'dropped'...");
+                // Fallback: try with status != "dropped"
+                enrollments = await _context.Enrollments
+                    .Include(e => e.Section)
+                        .ThenInclude(s => s!.Course)
+                    .Where(e => e.SectionId == sectionId && e.Status != "dropped")
+                    .ToListAsync();
+                Console.WriteLine($"✅ Enrollments with status != 'dropped': {enrollments.Count}");
+            }
+
+            // Get all Student entities for these enrollments
+            var studentEntityIds = enrollments.Select(e => e.StudentId).Distinct().ToList();
+            Console.WriteLine($"📚 Student entity IDs to fetch: [{string.Join(", ", studentEntityIds)}]");
+            
+            var studentEntities = await _context.Students
+                .Where(s => studentEntityIds.Contains(s.Id))
+                .Include(s => s.User)
+                .ToListAsync();
+            Console.WriteLine($"✅ Found {studentEntities.Count} student entities");
+            
+            var studentsDict = studentEntities.ToDictionary(s => s.Id);
 
             var result = new List<StudentEnrollmentDto>();
             foreach (var e in enrollments)
             {
+                var studentEntity = studentsDict.GetValueOrDefault(e.StudentId);
+                if (studentEntity == null)
+                {
+                    Console.WriteLine($"⚠️ Student entity not found for StudentId={e.StudentId}");
+                }
                 result.Add(new StudentEnrollmentDto
                 {
                     Id = e.Id,
                     StudentId = e.StudentId,
-                    StudentName = e.Student?.FirstName + " " + e.Student?.LastName,
-                    StudentNumber = students.ContainsKey(e.StudentId) ? students[e.StudentId].StudentNumber : "",
+                    StudentName = studentEntity?.User != null 
+                        ? $"{studentEntity.User.FirstName} {studentEntity.User.LastName}" 
+                        : "Bilinmeyen Öğrenci",
+                    StudentNumber = studentEntity?.StudentNumber ?? "",
                     MidtermGrade = e.MidtermGrade,
                     FinalGrade = e.FinalGrade,
                     HomeworkGrade = e.HomeworkGrade,
@@ -272,16 +384,34 @@ namespace SmartCampus.Business.Services
                     GradePoint = e.GradePoint
                 });
             }
+            
+            Console.WriteLine($"✅ Returning {result.Count} students for section {sectionId}");
             return result;
         }
 
         public async Task<MyGradesDto> GetMyGradesAsync(int studentId)
         {
+            Console.WriteLine($"\n🔍 GetMyGradesAsync called with studentId (userId): {studentId}");
+            
+            // studentId userId'dir, Student entity'sini bul
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s => s.UserId == studentId);
+            
+            if (student == null)
+            {
+                Console.WriteLine($"❌ Student not found for userId: {studentId}");
+                return new MyGradesDto { Data = new List<GradeDto>(), Gpa = 0, Cgpa = 0 };
+            }
+
+            Console.WriteLine($"✅ Student found: Id={student.Id}, UserId={student.UserId}");
+            
             var enrollments = await _context.Enrollments
                 .Include(e => e.Section)
                     .ThenInclude(s => s!.Course)
-                .Where(e => e.StudentId == studentId && e.Status != "dropped")
+                .Where(e => e.StudentId == student.Id && e.Status != "dropped")
                 .ToListAsync();
+
+            Console.WriteLine($"✅ Found {enrollments.Count} enrollments for student {student.Id}");
 
             var grades = enrollments.Select(e => new GradeDto
             {
@@ -311,6 +441,7 @@ namespace SmartCampus.Business.Services
                 gpa = cgpa; // Simplified - could be semester-specific
             }
 
+            Console.WriteLine($"✅ Returning {grades.Count} grades, GPA={gpa}, CGPA={cgpa}");
             return new MyGradesDto { Data = grades, Gpa = gpa, Cgpa = cgpa };
         }
 

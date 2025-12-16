@@ -133,12 +133,18 @@ Smart Campus Akademik Sistem
 
                 // Bu derse kayıtlı öğrencileri al
                 var enrolledStudentIds = await _context.Enrollments
-                    .Where(e => e.SectionId == sectionId && e.Status == "Active")
+                    .Where(e => e.SectionId == sectionId && e.Status == "enrolled")
                     .Select(e => e.StudentId)
                     .ToListAsync();
 
+                // StudentId'lerden UserId'leri bul
+                var studentUserIds = await _context.Students
+                    .Where(s => enrolledStudentIds.Contains(s.Id))
+                    .Select(s => s.UserId)
+                    .ToListAsync();
+
                 var students = await _context.Users
-                    .Where(u => enrolledStudentIds.Contains(u.Id))
+                    .Where(u => studentUserIds.Contains(u.Id))
                     .ToListAsync();
 
                 var courseName = session.Section?.Course?.Name ?? "Bilinmiyor";

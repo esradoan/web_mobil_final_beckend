@@ -64,6 +64,7 @@ namespace SmartCampus.Business.Services
                 >= 70 => "CC",
                 >= 65 => "DC",
                 >= 60 => "DD",
+                >= 50 => "FD",
                 _ => "FF"
             };
         }
@@ -79,6 +80,7 @@ namespace SmartCampus.Business.Services
                 "CC" => 2.0m,
                 "DC" => 1.5m,
                 "DD" => 1.0m,
+                "FD" => 0.5m,
                 "FF" => 0.0m,
                 _ => 0.0m
             };

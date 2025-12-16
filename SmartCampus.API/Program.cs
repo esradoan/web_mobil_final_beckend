@@ -27,6 +27,8 @@ builder.Services.AddControllers()
         // Use camelCase for JSON (standard for web APIs)
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.WriteIndented = true; // For debugging
+        // Convert enums to strings instead of numbers
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
 
@@ -364,6 +366,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 // Part 2 Services - Academic Management & Attendance
 builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<ICourseApplicationService, CourseApplicationService>();
+builder.Services.AddScoped<IStudentCourseApplicationService, StudentCourseApplicationService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IGradeCalculationService, GradeCalculationService>();
@@ -540,6 +544,81 @@ if (!skipMigrations)
                 else
                 {
                     logger.LogInformation("✅ No pending migrations. Database is up to date.");
+                }
+                
+                // Ensure roles exist in Identity
+                var roleManager = services.GetRequiredService<RoleManager<Role>>();
+                var userManager = services.GetRequiredService<UserManager<User>>();
+                var roles = new[] { "Admin", "Student", "Faculty" };
+                
+                foreach (var roleName in roles)
+                {
+                    var roleExists = await roleManager.RoleExistsAsync(roleName);
+                    if (!roleExists)
+                    {
+                        var role = new Role { Name = roleName };
+                        var result = await roleManager.CreateAsync(role);
+                        if (result.Succeeded)
+                        {
+                            logger.LogInformation($"✅ Created role: {roleName}");
+                        }
+                        else
+                        {
+                            logger.LogError($"❌ Failed to create role {roleName}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                        }
+                    }
+                    else
+                    {
+                        logger.LogInformation($"ℹ️ Role already exists: {roleName}");
+                    }
+                }
+                
+                // Ensure default admin user exists
+                var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? "admin@smartcampus.edu";
+                var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? "Admin@1234";
+                var adminUser = await userManager.FindByEmailAsync(adminEmail);
+                
+                if (adminUser == null)
+                {
+                    adminUser = new User
+                    {
+                        UserName = adminEmail,
+                        Email = adminEmail,
+                        FirstName = "Admin",
+                        LastName = "User",
+                        EmailConfirmed = true, // Admin email is auto-confirmed
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    
+                    var createResult = await userManager.CreateAsync(adminUser, adminPassword);
+                    if (createResult.Succeeded)
+                    {
+                        var roleResult = await userManager.AddToRoleAsync(adminUser, "Admin");
+                        if (roleResult.Succeeded)
+                        {
+                            logger.LogInformation($"✅ Created default admin user: {adminEmail}");
+                            logger.LogInformation($"   Password: {adminPassword}");
+                        }
+                        else
+                        {
+                            logger.LogError($"❌ Failed to assign Admin role: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+                        }
+                    }
+                    else
+                    {
+                        logger.LogError($"❌ Failed to create admin user: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
+                    }
+                }
+                else
+                {
+                    // Check if admin has Admin role
+                    var isAdmin = await userManager.IsInRoleAsync(adminUser, "Admin");
+                    if (!isAdmin)
+                    {
+                        await userManager.AddToRoleAsync(adminUser, "Admin");
+                        logger.LogInformation($"✅ Assigned Admin role to existing user: {adminEmail}");
+                    }
+                    logger.LogInformation($"ℹ️ Admin user already exists: {adminEmail}");
                 }
             }
         }

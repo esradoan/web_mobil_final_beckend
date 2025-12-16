@@ -14,5 +14,10 @@ namespace SmartCampus.Entities
 
         public decimal GPA { get; set; }
         public decimal CGPA { get; set; }
+        
+        /// <summary>
+        /// Öğrencinin aktif/pasif durumu. Pasif öğrenciler ders kaydı yapamaz, yoklama veremez.
+        /// </summary>
+        public bool IsActive { get; set; } = true;
     }
 }

@@ -14,48 +14,26 @@ namespace SmartCampus.DataAccess.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "UserActivityLogs",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    Action = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    IpAddress = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_UserActivityLogs", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // UserActivityLogs tablosu zaten mevcut, oluşturma işlemini atla
+            // migrationBuilder.CreateTable(...) kaldırıldı
 
-            migrationBuilder.InsertData(
-                table: "Departments",
-                columns: new[] { "Id", "Code", "CreatedAt", "FacultyName", "IsDeleted", "Name", "UpdatedAt" },
-                values: new object[,]
-                {
-                    { 1, "CENG", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "Mühendislik Fakültesi", false, "Bilgisayar Mühendisliği", null },
-                    { 2, "EE", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "Mühendislik Fakültesi", false, "Elektrik-Elektronik Mühendisliği", null },
-                    { 3, "SE", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "Mühendislik Fakültesi", false, "Yazılım Mühendisliği", null },
-                    { 4, "BA", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "İktisadi ve İdari Bilimler Fakültesi", false, "İşletme", null },
-                    { 5, "PSY", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "Fen-Edebiyat Fakültesi", false, "Psikoloji", null }
-                });
+            // Department verileri zaten mevcut, INSERT işlemini SQL ile IGNORE kullanarak yapıyoruz
+            migrationBuilder.Sql(@"
+                INSERT IGNORE INTO `Departments` (`Id`, `Code`, `CreatedAt`, `FacultyName`, `IsDeleted`, `Name`, `UpdatedAt`)
+                VALUES 
+                (1, 'CENG', '2024-01-01 00:00:00', 'Mühendislik Fakültesi', FALSE, 'Bilgisayar Mühendisliği', NULL),
+                (2, 'EE', '2024-01-01 00:00:00', 'Mühendislik Fakültesi', FALSE, 'Elektrik-Elektronik Mühendisliği', NULL),
+                (3, 'SE', '2024-01-01 00:00:00', 'Mühendislik Fakültesi', FALSE, 'Yazılım Mühendisliği', NULL),
+                (4, 'BA', '2024-01-01 00:00:00', 'İktisadi ve İdari Bilimler Fakültesi', FALSE, 'İşletme', NULL),
+                (5, 'PSY', '2024-01-01 00:00:00', 'Fen-Edebiyat Fakültesi', FALSE, 'Psikoloji', NULL);
+            ");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "UserActivityLogs");
+            // UserActivityLogs tablosu silinmeyecek (zaten mevcut)
+            // migrationBuilder.DropTable(...) kaldırıldı
 
             migrationBuilder.DeleteData(
                 table: "Departments",

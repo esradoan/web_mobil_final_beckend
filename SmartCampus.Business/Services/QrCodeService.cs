@@ -42,6 +42,7 @@ namespace SmartCampus.Business.Services
         public decimal Longitude { get; set; }
         public decimal Accuracy { get; set; }
         public bool? IsMockLocation { get; set; }
+        public string? DeviceType { get; set; } // "mobile" or "desktop" - for accuracy threshold adjustment
     }
 
     public class QrCheckInResponseDto
@@ -114,6 +115,28 @@ namespace SmartCampus.Business.Services
             QrCheckInRequestDto dto, 
             string? clientIp)
         {
+            // Check if student is active
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s => s.UserId == studentId);
+            
+            if (student == null)
+            {
+                return new QrCheckInResponseDto
+                {
+                    Success = false,
+                    Message = "Öğrenci bulunamadı."
+                };
+            }
+            
+            if (!student.IsActive)
+            {
+                return new QrCheckInResponseDto
+                {
+                    Success = false,
+                    Message = "Pasif öğrenciler yoklama veremez."
+                };
+            }
+            
             var session = await _context.AttendanceSessions.FindAsync(sessionId);
             if (session == null || session.Status != "active")
             {
@@ -166,7 +189,7 @@ namespace SmartCampus.Business.Services
                 (double)dto.Latitude, (double)dto.Longitude,
                 (double)session.Latitude, (double)session.Longitude);
 
-            // 5. Check spoofing
+            // 5. Check spoofing - Device type aware
             var flags = new List<string>();
             
             if (distance > (double)session.GeofenceRadius + 10.0) // More lenient for QR (10m buffer)
@@ -174,9 +197,23 @@ namespace SmartCampus.Business.Services
                 flags.Add($"Distance: {distance:F1}m");
             }
             
-            if (dto.Accuracy > 100) // More lenient for QR
+            // Accuracy check - Device type aware (mobile vs desktop)
+            var accuracyThreshold = dto.DeviceType == "mobile" ? 100m : 500m; // More lenient for QR
+            if (dto.Accuracy > accuracyThreshold)
             {
-                flags.Add($"Low accuracy: {dto.Accuracy:F1}m");
+                flags.Add($"Low accuracy for {dto.DeviceType ?? "unknown"} device: {dto.Accuracy:F1}m (threshold: {accuracyThreshold}m)");
+            }
+            
+            // Mobile-specific: Very low accuracy is suspicious
+            if (dto.DeviceType == "mobile" && dto.Accuracy > 200)
+            {
+                flags.Add($"Suspiciously low accuracy for mobile device: {dto.Accuracy:F1}m");
+            }
+            
+            // Desktop-specific: Very high accuracy is suspicious
+            if (dto.DeviceType == "desktop" && dto.Accuracy < 10)
+            {
+                flags.Add($"Suspiciously high accuracy for desktop: {dto.Accuracy:F1}m (possible GPS spoofing)");
             }
             
             if (dto.IsMockLocation == true)

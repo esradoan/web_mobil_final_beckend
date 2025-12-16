@@ -155,5 +155,18 @@ namespace SmartCampus.API.Controllers
                 return NotFound(new { message = "Section not found", error = "NotFound" });
             return Ok(section);
         }
+
+        /// <summary>
+        /// Section silme - soft delete (Admin)
+        /// </summary>
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteSection(int id)
+        {
+            var result = await _courseService.DeleteSectionAsync(id);
+            if (!result)
+                return NotFound(new { message = "Section not found", error = "NotFound" });
+            return NoContent();
+        }
     }
 }

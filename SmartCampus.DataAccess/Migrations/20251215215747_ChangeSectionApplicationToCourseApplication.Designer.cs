@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartCampus.DataAccess;
 
@@ -11,9 +12,11 @@ using SmartCampus.DataAccess;
 namespace SmartCampus.DataAccess.Migrations
 {
     [DbContext(typeof(CampusDbContext))]
-    partial class CampusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251215215747_ChangeSectionApplicationToCourseApplication")]
+    partial class ChangeSectionApplicationToCourseApplication
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1485,58 +1488,6 @@ namespace SmartCampus.DataAccess.Migrations
                     b.ToTable("Students");
                 });
 
-            modelBuilder.Entity("SmartCampus.Entities.StudentCourseApplication", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("ProcessedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("SectionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("ProcessedBy");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("SectionId", "StudentId")
-                        .IsUnique();
-
-                    b.ToTable("StudentCourseApplications");
-                });
-
             modelBuilder.Entity("SmartCampus.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1964,40 +1915,6 @@ namespace SmartCampus.DataAccess.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SmartCampus.Entities.StudentCourseApplication", b =>
-                {
-                    b.HasOne("SmartCampus.Entities.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartCampus.Entities.User", "ProcessedByUser")
-                        .WithMany()
-                        .HasForeignKey("ProcessedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("SmartCampus.Entities.CourseSection", "Section")
-                        .WithMany()
-                        .HasForeignKey("SectionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartCampus.Entities.User", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("ProcessedByUser");
-
-                    b.Navigation("Section");
-
-                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("SmartCampus.Entities.AttendanceSession", b =>

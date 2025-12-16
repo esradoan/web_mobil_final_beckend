@@ -7,6 +7,8 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using AutoMapper;
 using SmartCampus.Business.Services;
+using SmartCampus.DataAccess;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartCampus.API.Controllers
 {
@@ -16,10 +18,14 @@ namespace SmartCampus.API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly CampusDbContext _context;
+        private readonly UserManager<User> _userManager;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, CampusDbContext context, UserManager<User> userManager)
         {
             _userService = userService;
+            _context = context;
+            _userManager = userManager;
         }
 
         [HttpGet("me")]
@@ -81,6 +87,44 @@ namespace SmartCampus.API.Controllers
         {
              var users = await _userService.GetAllUsersAsync(page, pageSize);
              return Ok(users);
+        }
+
+        /// <summary>
+        /// Faculty listesi (Section yönetimi için instructor seçimi)
+        /// </summary>
+        [HttpGet("faculty")]
+        [Authorize] // Admin ve Faculty erişebilir
+        public async Task<IActionResult> GetFaculty()
+        {
+            try
+            {
+                var faculty = await _context.Faculties
+                    .Include(f => f.User)
+                    .Include(f => f.Department)
+                    .Where(f => !f.IsDeleted)
+                    .Select(f => new
+                    {
+                        Id = f.UserId,
+                        FacultyId = f.Id,
+                        FirstName = f.User.FirstName,
+                        LastName = f.User.LastName,
+                        Email = f.User.Email,
+                        EmployeeNumber = f.EmployeeNumber,
+                        Title = f.Title,
+                        DepartmentId = f.DepartmentId,
+                        DepartmentName = f.Department.Name,
+                        DepartmentCode = f.Department.Code
+                    })
+                    .OrderBy(f => f.LastName)
+                    .ThenBy(f => f.FirstName)
+                    .ToListAsync();
+
+                return Ok(new { data = faculty });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Faculty listesi alınamadı", error = ex.Message });
+            }
         }
     }
 }
