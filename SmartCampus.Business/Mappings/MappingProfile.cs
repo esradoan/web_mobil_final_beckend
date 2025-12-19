@@ -11,10 +11,12 @@ namespace SmartCampus.Business.Mappings
             CreateMap<User, UserDto>()
                 .ForMember(dest => dest.IsEmailVerified, opt => opt.MapFrom(src => src.EmailConfirmed))
                 .ForMember(dest => dest.Role, opt => opt.Ignore()) // Role is set manually
+                .ForMember(dest => dest.DepartmentId, opt => opt.Ignore()) // Set manually from Student/Faculty
                 .ReverseMap()
                 .ValidateMemberList(MemberList.Source)
                 .ForSourceMember(src => src.Role, opt => opt.DoNotValidate())
-                .ForSourceMember(src => src.IsEmailVerified, opt => opt.DoNotValidate());
+                .ForSourceMember(src => src.IsEmailVerified, opt => opt.DoNotValidate())
+                .ForSourceMember(src => src.DepartmentId, opt => opt.DoNotValidate());
 
             CreateMap<RegisterDto, User>(MemberList.Source)
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()) 

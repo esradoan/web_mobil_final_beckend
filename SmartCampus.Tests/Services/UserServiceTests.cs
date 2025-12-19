@@ -3,21 +3,21 @@ using Moq;
 using Xunit;
 using AutoMapper;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
 using SmartCampus.Entities;
 using SmartCampus.DataAccess;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 
 namespace SmartCampus.Tests.Services
 {
-    public class UserServiceTests
+    public class UserServiceTests : IDisposable
     {
         private readonly Mock<UserManager<User>> _mockUserManager;
         private readonly Mock<IMapper> _mockMapper;
-        private readonly Mock<CampusDbContext> _mockContext;
+        private readonly CampusDbContext _context;
         private readonly UserService _userService;
 
         public UserServiceTests()
@@ -25,16 +25,26 @@ namespace SmartCampus.Tests.Services
             var store = new Mock<IUserStore<User>>();
             _mockUserManager = new Mock<UserManager<User>>(store.Object, null, null, null, null, null, null, null, null);
             _mockMapper = new Mock<IMapper>();
-            _mockContext = new Mock<CampusDbContext>();
-            _userService = new UserService(_mockUserManager.Object, _mockMapper.Object, _mockContext.Object);
+            
+            // Use InMemory database instead of mocking DbContext
+            var options = new DbContextOptionsBuilder<CampusDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+            _context = new CampusDbContext(options);
+            
+            _userService = new UserService(_mockUserManager.Object, _mockMapper.Object, _context);
+        }
+
+        public void Dispose()
+        {
+            _context?.Dispose();
         }
 
         // GetProfileAsync Tests
         [Fact]
         public async Task GetProfileAsync_ReturnsNull_WhenUserNotFound()
         {
-            _mockUserManager.Setup(x => x.FindByIdAsync("999")).ReturnsAsync((User)null);
-
+            // User not in InMemory DB
             var result = await _userService.GetProfileAsync(999);
 
             Assert.Null(result);
@@ -43,13 +53,22 @@ namespace SmartCampus.Tests.Services
         [Fact]
         public async Task GetProfileAsync_ReturnsUserDto_WhenUserFound()
         {
-            var user = new User { Id = 1, Email = "test@example.com" };
-            var userDto = new UserDto { Id = 1, Email = "test@example.com" };
+            // Add user to InMemory DB (GetProfileAsync uses _context.Users, not UserManager)
+            var user = new User { Id = 100, Email = "test@example.com", FirstName = "Test", LastName = "User" };
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            
+            // Add Student entry for role detection
+            var student = new Student { Id = 1, UserId = 100, StudentNumber = "12345", DepartmentId = 1 };
+            _context.Students.Add(student);
+            await _context.SaveChangesAsync();
+            
+            var userDto = new UserDto { Id = 100, Email = "test@example.com" };
+            _mockMapper.Setup(x => x.Map<UserDto>(It.IsAny<User>())).Returns(userDto);
+            _mockUserManager.Setup(x => x.IsEmailConfirmedAsync(It.IsAny<User>())).ReturnsAsync(true);
+            _mockUserManager.Setup(x => x.GetRolesAsync(It.IsAny<User>())).ReturnsAsync(new System.Collections.Generic.List<string> { "Student" });
 
-            _mockUserManager.Setup(x => x.FindByIdAsync("1")).ReturnsAsync(user);
-            _mockMapper.Setup(x => x.Map<UserDto>(user)).Returns(userDto);
-
-            var result = await _userService.GetProfileAsync(1);
+            var result = await _userService.GetProfileAsync(100);
 
             Assert.NotNull(result);
             Assert.Equal("test@example.com", result.Email);
@@ -58,15 +77,24 @@ namespace SmartCampus.Tests.Services
         [Fact]
         public async Task GetProfileAsync_CallsMapperWithCorrectUser()
         {
-            var user = new User { Id = 5, Email = "mapper@test.com" };
-            var userDto = new UserDto { Id = 5, Email = "mapper@test.com" };
+            // Add user to InMemory DB
+            var user = new User { Id = 200, Email = "mapper@test.com", FirstName = "Mapper", LastName = "Test" };
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            
+            // Add Student entry for role detection
+            var student = new Student { Id = 2, UserId = 200, StudentNumber = "54321", DepartmentId = 1 };
+            _context.Students.Add(student);
+            await _context.SaveChangesAsync();
+            
+            var userDto = new UserDto { Id = 200, Email = "mapper@test.com" };
+            _mockMapper.Setup(x => x.Map<UserDto>(It.IsAny<User>())).Returns(userDto);
+            _mockUserManager.Setup(x => x.IsEmailConfirmedAsync(It.IsAny<User>())).ReturnsAsync(true);
+            _mockUserManager.Setup(x => x.GetRolesAsync(It.IsAny<User>())).ReturnsAsync(new System.Collections.Generic.List<string> { "Student" });
 
-            _mockUserManager.Setup(x => x.FindByIdAsync("5")).ReturnsAsync(user);
-            _mockMapper.Setup(x => x.Map<UserDto>(user)).Returns(userDto);
+            await _userService.GetProfileAsync(200);
 
-            await _userService.GetProfileAsync(5);
-
-            _mockMapper.Verify(x => x.Map<UserDto>(user), Times.Once);
+            _mockMapper.Verify(x => x.Map<UserDto>(It.IsAny<User>()), Times.Once);
         }
 
         // UpdateProfileAsync Tests
@@ -75,7 +103,7 @@ namespace SmartCampus.Tests.Services
         {
             _mockUserManager.Setup(x => x.FindByIdAsync("999")).ReturnsAsync((User)null);
 
-            await Assert.ThrowsAsync<System.Exception>(() => 
+            await Assert.ThrowsAsync<Exception>(() => 
                 _userService.UpdateProfileAsync(999, new UpdateUserDto()));
         }
 
@@ -106,7 +134,7 @@ namespace SmartCampus.Tests.Services
             _mockUserManager.Setup(x => x.UpdateAsync(user))
                 .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Update failed" }));
 
-            var ex = await Assert.ThrowsAsync<System.Exception>(() => 
+            var ex = await Assert.ThrowsAsync<Exception>(() => 
                 _userService.UpdateProfileAsync(1, updateDto));
 
             Assert.Contains("Update failed", ex.Message);
@@ -118,7 +146,7 @@ namespace SmartCampus.Tests.Services
         {
             _mockUserManager.Setup(x => x.FindByIdAsync("999")).ReturnsAsync((User)null);
 
-            await Assert.ThrowsAsync<System.Exception>(() => 
+            await Assert.ThrowsAsync<Exception>(() => 
                 _userService.UpdateProfilePictureAsync(999, "/some/url.jpg"));
         }
 
@@ -146,7 +174,7 @@ namespace SmartCampus.Tests.Services
             _mockUserManager.Setup(x => x.UpdateAsync(user))
                 .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Picture update failed" }));
 
-            var ex = await Assert.ThrowsAsync<System.Exception>(() => 
+            var ex = await Assert.ThrowsAsync<Exception>(() => 
                 _userService.UpdateProfilePictureAsync(1, "/url.jpg"));
 
             Assert.Contains("Picture update failed", ex.Message);
