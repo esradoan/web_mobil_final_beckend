@@ -379,6 +379,8 @@ builder.Services.AddScoped<IAttendanceAnalyticsService, AttendanceAnalyticsServi
 // Part 3 Services - Meal, Events, Scheduling
 builder.Services.AddScoped<IMealService, MealService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 
 // SignalR - Real-time WebSocket
 builder.Services.AddSignalR();
