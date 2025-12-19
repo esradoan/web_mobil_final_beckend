@@ -12,10 +12,12 @@ namespace SmartCampus.API.Controllers
     public class SchedulingController : ControllerBase
     {
         private readonly ISchedulingService _schedulingService;
+        private readonly IGeneticSchedulingService _geneticService;
 
-        public SchedulingController(ISchedulingService schedulingService)
+        public SchedulingController(ISchedulingService schedulingService, IGeneticSchedulingService geneticService)
         {
             _schedulingService = schedulingService;
+            _geneticService = geneticService;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
@@ -29,6 +31,22 @@ namespace SmartCampus.API.Controllers
         public async Task<IActionResult> GenerateSchedule([FromBody] GenerateScheduleDto dto)
         {
             var result = await _schedulingService.GenerateScheduleAsync(dto);
+            
+            if (!result.Success)
+                return BadRequest(new { message = result.Message, error = "GenerationFailed" });
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Genetik Algoritma ile ders programı oluştur (Admin)
+        /// Daha iyi optimizasyon, soft constraints desteği
+        /// </summary>
+        [HttpPost("generate/genetic")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GenerateWithGeneticAlgorithm([FromBody] GeneticScheduleRequestDto dto)
+        {
+            var result = await _geneticService.GenerateWithGeneticAlgorithmAsync(dto);
             
             if (!result.Success)
                 return BadRequest(new { message = result.Message, error = "GenerationFailed" });

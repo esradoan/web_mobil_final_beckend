@@ -381,6 +381,11 @@ builder.Services.AddScoped<IMealService, MealService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<IGeneticSchedulingService, GeneticSchedulingService>();
+builder.Services.AddScoped<IClassroomReservationService, ClassroomReservationService>();
+
+// Part 3 Bonus - SMS Notifications
+builder.Services.AddHttpClient<ISmsService, SmsService>();
 
 // SignalR - Real-time WebSocket
 builder.Services.AddSignalR();
