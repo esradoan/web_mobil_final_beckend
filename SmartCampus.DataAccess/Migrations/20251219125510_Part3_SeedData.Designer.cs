@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartCampus.DataAccess;
 
@@ -11,9 +12,11 @@ using SmartCampus.DataAccess;
 namespace SmartCampus.DataAccess.Migrations
 {
     [DbContext(typeof(CampusDbContext))]
-    partial class CampusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251219125510_Part3_SeedData")]
+    partial class Part3_SeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1945,9 +1948,6 @@ namespace SmartCampus.DataAccess.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsScholarship")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("StudentNumber")

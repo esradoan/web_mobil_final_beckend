@@ -376,6 +376,10 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IAttendanceAnalyticsService, AttendanceAnalyticsService>();
 
+// Part 3 Services - Meal, Events, Scheduling
+builder.Services.AddScoped<IMealService, MealService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
+
 // SignalR - Real-time WebSocket
 builder.Services.AddSignalR();
 builder.Services.AddScoped<SmartCampus.API.Services.IAttendanceHubService, SmartCampus.API.Services.AttendanceHubService>();

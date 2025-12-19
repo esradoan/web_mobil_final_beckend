@@ -19,5 +19,10 @@ namespace SmartCampus.Entities
         /// Öğrencinin aktif/pasif durumu. Pasif öğrenciler ders kaydı yapamaz, yoklama veremez.
         /// </summary>
         public bool IsActive { get; set; } = true;
+        
+        /// <summary>
+        /// Burslu öğrenci mi? Burslu öğrenciler yemekhanede ücretsiz yemek yiyebilir (günlük max 2 öğün).
+        /// </summary>
+        public bool IsScholarship { get; set; } = false;
     }
 }

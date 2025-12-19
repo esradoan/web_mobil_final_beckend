@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartCampus.DataAccess;
 
@@ -11,9 +12,11 @@ using SmartCampus.DataAccess;
 namespace SmartCampus.DataAccess.Migrations
 {
     [DbContext(typeof(CampusDbContext))]
-    partial class CampusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251219125158_Part3_MealEventScheduling")]
+    partial class Part3_MealEventScheduling
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -262,35 +265,6 @@ namespace SmartCampus.DataAccess.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Cafeterias");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Capacity = 500,
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true,
-                            Location = "Ana Kampüs, A Blok Zemin Kat",
-                            Name = "Merkez Yemekhane"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Capacity = 200,
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true,
-                            Location = "Mühendislik Fakültesi, B Blok",
-                            Name = "Mühendislik Kafeteryası"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Capacity = 100,
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true,
-                            Location = "Merkez Kütüphane, 1. Kat",
-                            Name = "Kütüphane Cafe"
-                        });
                 });
 
             modelBuilder.Entity("SmartCampus.Entities.Classroom", b =>
@@ -1429,84 +1403,6 @@ namespace SmartCampus.DataAccess.Migrations
                     b.HasIndex("OrganizerId");
 
                     b.ToTable("Events");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Capacity = 500,
-                            Category = "conference",
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Date = new DateTime(2024, 3, 15, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Sektörün önde gelen şirketlerinin katılımıyla kariyer fırsatları",
-                            EndTime = new TimeSpan(0, 17, 0, 0, 0),
-                            IsPaid = false,
-                            Location = "Kongre Merkezi",
-                            OrganizerId = 1,
-                            Price = 0m,
-                            RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 3, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            StartTime = new TimeSpan(0, 9, 0, 0, 0),
-                            Status = "published",
-                            Title = "Kariyer Günleri 2024"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Capacity = 30,
-                            Category = "workshop",
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Date = new DateTime(2024, 4, 20, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "ChatGPT ve LLM'ler üzerine uygulamalı workshop",
-                            EndTime = new TimeSpan(0, 18, 0, 0, 0),
-                            IsPaid = true,
-                            Location = "Bilgisayar Lab 3",
-                            OrganizerId = 1,
-                            Price = 50m,
-                            RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 4, 15, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            StartTime = new TimeSpan(0, 14, 0, 0, 0),
-                            Status = "published",
-                            Title = "Yapay Zeka Workshop"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Capacity = 2000,
-                            Category = "social",
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Date = new DateTime(2024, 5, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Müzik, dans ve eğlence dolu bahar festivali",
-                            EndTime = new TimeSpan(0, 22, 0, 0, 0),
-                            IsPaid = false,
-                            Location = "Kampüs Bahçesi",
-                            OrganizerId = 1,
-                            Price = 0m,
-                            RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 4, 28, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            StartTime = new TimeSpan(0, 12, 0, 0, 0),
-                            Status = "published",
-                            Title = "Bahar Şenliği"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Capacity = 200,
-                            Category = "sports",
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Date = new DateTime(2024, 5, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Bölümler arası futbol turnuvası",
-                            EndTime = new TimeSpan(0, 18, 0, 0, 0),
-                            IsPaid = false,
-                            Location = "Spor Sahası",
-                            OrganizerId = 1,
-                            Price = 0m,
-                            RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 5, 5, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            StartTime = new TimeSpan(0, 10, 0, 0, 0),
-                            Status = "published",
-                            Title = "Futbol Turnuvası"
-                        });
                 });
 
             modelBuilder.Entity("SmartCampus.Entities.EventRegistration", b =>
@@ -1945,9 +1841,6 @@ namespace SmartCampus.DataAccess.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsScholarship")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("StudentNumber")
