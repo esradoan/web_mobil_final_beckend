@@ -37,6 +37,23 @@ namespace SmartCampus.DataAccess
         // Part 2 - Student Course Applications
         public DbSet<StudentCourseApplication> StudentCourseApplications { get; set; } = null!;
 
+        // Part 3 - Meal Service
+        public DbSet<Cafeteria> Cafeterias { get; set; } = null!;
+        public DbSet<MealMenu> MealMenus { get; set; } = null!;
+        public DbSet<MealReservation> MealReservations { get; set; } = null!;
+        
+        // Part 3 - Wallet/Payment
+        public DbSet<Wallet> Wallets { get; set; } = null!;
+        public DbSet<Transaction> Transactions { get; set; } = null!;
+        
+        // Part 3 - Event Management
+        public DbSet<Event> Events { get; set; } = null!;
+        public DbSet<EventRegistration> EventRegistrations { get; set; } = null!;
+        
+        // Part 3 - Scheduling & Reservations
+        public DbSet<Schedule> Schedules { get; set; } = null!;
+        public DbSet<ClassroomReservation> ClassroomReservations { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Critical for Identity
@@ -266,6 +283,120 @@ namespace SmartCampus.DataAccess
             modelBuilder.Entity<StudentCourseApplication>()
                 .HasIndex(sca => new { sca.SectionId, sca.StudentId })
                 .IsUnique();
+
+            // ==================== PART 3 RELATIONSHIPS ====================
+
+            // Cafeteria - MealMenu (1:N)
+            modelBuilder.Entity<MealMenu>()
+                .HasOne(m => m.Cafeteria)
+                .WithMany(c => c.Menus)
+                .HasForeignKey(m => m.CafeteriaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // MealReservation relationships
+            modelBuilder.Entity<MealReservation>()
+                .HasOne(mr => mr.User)
+                .WithMany()
+                .HasForeignKey(mr => mr.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MealReservation>()
+                .HasOne(mr => mr.Menu)
+                .WithMany(m => m.Reservations)
+                .HasForeignKey(mr => mr.MenuId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MealReservation>()
+                .HasOne(mr => mr.Cafeteria)
+                .WithMany(c => c.Reservations)
+                .HasForeignKey(mr => mr.CafeteriaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MealReservation>()
+                .HasIndex(mr => mr.QrCode)
+                .IsUnique();
+
+            // Wallet - User (1:1)
+            modelBuilder.Entity<Wallet>()
+                .HasOne(w => w.User)
+                .WithOne()
+                .HasForeignKey<Wallet>(w => w.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Wallet>()
+                .HasIndex(w => w.UserId)
+                .IsUnique();
+
+            // Transaction - Wallet (N:1)
+            modelBuilder.Entity<Transaction>()
+                .HasOne(t => t.Wallet)
+                .WithMany(w => w.Transactions)
+                .HasForeignKey(t => t.WalletId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Event - Organizer (N:1)
+            modelBuilder.Entity<Event>()
+                .HasOne(e => e.Organizer)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // EventRegistration relationships
+            modelBuilder.Entity<EventRegistration>()
+                .HasOne(er => er.Event)
+                .WithMany(e => e.Registrations)
+                .HasForeignKey(er => er.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<EventRegistration>()
+                .HasOne(er => er.User)
+                .WithMany()
+                .HasForeignKey(er => er.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<EventRegistration>()
+                .HasIndex(er => er.QrCode)
+                .IsUnique();
+
+            modelBuilder.Entity<EventRegistration>()
+                .HasIndex(er => new { er.EventId, er.UserId })
+                .IsUnique();
+
+            // Schedule relationships
+            modelBuilder.Entity<Schedule>()
+                .HasOne(s => s.Section)
+                .WithMany()
+                .HasForeignKey(s => s.SectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Schedule>()
+                .HasOne(s => s.Classroom)
+                .WithMany()
+                .HasForeignKey(s => s.ClassroomId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Schedule>()
+                .HasIndex(s => new { s.ClassroomId, s.DayOfWeek, s.StartTime, s.Semester, s.Year })
+                .IsUnique();
+
+            // ClassroomReservation relationships
+            modelBuilder.Entity<ClassroomReservation>()
+                .HasOne(cr => cr.Classroom)
+                .WithMany()
+                .HasForeignKey(cr => cr.ClassroomId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ClassroomReservation>()
+                .HasOne(cr => cr.User)
+                .WithMany()
+                .HasForeignKey(cr => cr.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClassroomReservation>()
+                .HasOne(cr => cr.Approver)
+                .WithMany()
+                .HasForeignKey(cr => cr.ApprovedBy)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // ==================== SEED DATA ====================
             var seedDate = new System.DateTime(2024, 1, 1);
