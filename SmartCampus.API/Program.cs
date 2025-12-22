@@ -716,6 +716,113 @@ if (!skipMigrations)
                     await context.SaveChangesAsync();
                     logger.LogInformation($"✅ Created {events.Count} sample events");
                 }
+
+                // Meal Menus seed data'sını ekle
+                var existingMenus = await context.MealMenus.CountAsync();
+                if (existingMenus == 0)
+                {
+                    var cafeterias = await context.Cafeterias.ToListAsync();
+                    if (cafeterias.Any())
+                    {
+                        var today = DateTime.UtcNow.Date;
+                        var menus = new List<MealMenu>();
+
+                        // Bugünden itibaren 7 gün için menü oluştur
+                        for (int i = 0; i < 7; i++)
+                        {
+                            var menuDate = today.AddDays(i);
+                            
+                            foreach (var cafeteria in cafeterias)
+                            {
+                                // Öğle yemeği
+                                menus.Add(new MealMenu
+                                {
+                                    CafeteriaId = cafeteria.Id,
+                                    Date = menuDate,
+                                    MealType = "lunch",
+                                    ItemsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+                                    {
+                                        "Mercimek Çorbası",
+                                        "Tavuk Sote",
+                                        "Pilav",
+                                        "Salata",
+                                        "Yoğurt"
+                                    }),
+                                    NutritionJson = System.Text.Json.JsonSerializer.Serialize(new
+                                    {
+                                        calories = 650,
+                                        protein = 35,
+                                        carbs = 75,
+                                        fat = 20
+                                    }),
+                                    HasVegetarianOption = true,
+                                    Price = 25.00m,
+                                    IsPublished = true,
+                                    CreatedAt = DateTime.UtcNow
+                                });
+
+                                // Akşam yemeği
+                                menus.Add(new MealMenu
+                                {
+                                    CafeteriaId = cafeteria.Id,
+                                    Date = menuDate,
+                                    MealType = "dinner",
+                                    ItemsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+                                    {
+                                        "Ezogelin Çorbası",
+                                        "Izgara Köfte",
+                                        "Makarna",
+                                        "Mevsim Salatası",
+                                        "Tatlı"
+                                    }),
+                                    NutritionJson = System.Text.Json.JsonSerializer.Serialize(new
+                                    {
+                                        calories = 750,
+                                        protein = 40,
+                                        carbs = 85,
+                                        fat = 25
+                                    }),
+                                    HasVegetarianOption = false,
+                                    Price = 30.00m,
+                                    IsPublished = true,
+                                    CreatedAt = DateTime.UtcNow
+                                });
+                            }
+                        }
+
+                        context.MealMenus.AddRange(menus);
+                        await context.SaveChangesAsync();
+                        logger.LogInformation($"✅ Created {menus.Count} sample meal menus");
+                    }
+                }
+
+                // Wallet seed data'sını ekle - Tüm kullanıcılar için wallet oluştur ve test bakiyesi ekle
+                var usersWithoutWallet = await context.Users
+                    .Where(u => !context.Wallets.Any(w => w.UserId == u.Id))
+                    .ToListAsync();
+
+                if (usersWithoutWallet.Any())
+                {
+                    var wallets = new List<Wallet>();
+                    foreach (var user in usersWithoutWallet)
+                    {
+                        // Admin kullanıcısı için daha fazla bakiye, diğerleri için test bakiyesi
+                        var initialBalance = user.Email?.ToLower().Contains("admin") == true ? 1000.00m : 500.00m;
+                        
+                        wallets.Add(new Wallet
+                        {
+                            UserId = user.Id,
+                            Balance = initialBalance,
+                            Currency = "TRY",
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    context.Wallets.AddRange(wallets);
+                    await context.SaveChangesAsync();
+                    logger.LogInformation($"✅ Created {wallets.Count} wallets with initial balance");
+                }
             }
         }
         catch (Exception ex)
