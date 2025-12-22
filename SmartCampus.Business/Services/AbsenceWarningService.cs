@@ -65,6 +65,7 @@ namespace SmartCampus.Business.Services
                 .Include(e => e.Section)
                     .ThenInclude(s => s.Course)
                 .Where(e => e.Status == "Active" && 
+                           e.Section != null &&
                            e.Section.Semester == currentSemester &&
                            e.Section.Year == currentYear)
                 .ToListAsync();
@@ -75,6 +76,8 @@ namespace SmartCampus.Business.Services
             foreach (var enrollment in enrollments)
             {
                 // Bu enrollment için yoklama istatistiklerini hesapla
+                if (enrollment.Section == null) continue;
+                
                 var sectionId = enrollment.SectionId;
                 var studentId = enrollment.StudentId;
 
@@ -84,12 +87,16 @@ namespace SmartCampus.Business.Services
                 if (totalSessions == 0) continue; // Henüz yoklama yok
 
                 var attendedSessions = await context.AttendanceRecords
-                    .CountAsync(r => r.Session.SectionId == sectionId && 
+                    .Include(r => r.Session)
+                    .CountAsync(r => r.Session != null &&
+                                    r.Session.SectionId == sectionId && 
                                     r.StudentId == studentId &&
                                     !r.IsFlagged);
 
                 var excusedAbsences = await context.ExcuseRequests
+                    .Include(e => e.Session)
                     .CountAsync(e => e.StudentId == studentId &&
+                                    e.Session != null &&
                                     e.Session.SectionId == sectionId &&
                                     e.Status == "Approved");
 
@@ -116,9 +123,9 @@ namespace SmartCampus.Business.Services
 
         private async Task SendWarningAsync(dynamic enrollment, double absenceRate, IEmailService emailService)
         {
-            var studentEmail = enrollment.Student?.Email;
-            var studentName = enrollment.Student?.FirstName + " " + enrollment.Student?.LastName;
-            var courseName = enrollment.Section?.Course?.Name;
+            var studentEmail = enrollment.Student?.Email as string;
+            var studentName = (enrollment.Student?.FirstName as string ?? "") + " " + (enrollment.Student?.LastName as string ?? "");
+            var courseName = enrollment.Section?.Course?.Name as string;
 
             if (string.IsNullOrEmpty(studentEmail)) return;
 
@@ -150,9 +157,9 @@ Smart Campus Akademik Sistem
 
         private async Task SendCriticalWarningAsync(dynamic enrollment, double absenceRate, IEmailService emailService)
         {
-            var studentEmail = enrollment.Student?.Email;
-            var studentName = enrollment.Student?.FirstName + " " + enrollment.Student?.LastName;
-            var courseName = enrollment.Section?.Course?.Name;
+            var studentEmail = enrollment.Student?.Email as string;
+            var studentName = (enrollment.Student?.FirstName as string ?? "") + " " + (enrollment.Student?.LastName as string ?? "");
+            var courseName = enrollment.Section?.Course?.Name as string;
 
             if (string.IsNullOrEmpty(studentEmail)) return;
 

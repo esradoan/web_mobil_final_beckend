@@ -59,10 +59,13 @@ namespace SmartCampus.Business.Services
             // Reset failed count on success
             await _userManager.ResetAccessFailedCountAsync(user);
 
-            // Check Email Confirmation
-            if (_userManager.Options.SignIn.RequireConfirmedEmail && !await _userManager.IsEmailConfirmedAsync(user))
+            // Check Email Confirmation - Admin kullanıcıları için email doğrulaması gerekmez
+            var userRoles = await _userManager.GetRolesAsync(user);
+            var isAdmin = userRoles.Contains("Admin");
+            
+            if (!isAdmin && _userManager.Options.SignIn.RequireConfirmedEmail && !await _userManager.IsEmailConfirmedAsync(user))
             {
-                 // thrown if enforced
+                throw new Exception("Email address not confirmed. Please check your email and verify your account.");
             }
 
             // Log activity (ignore errors if table doesn't exist yet)
@@ -185,25 +188,38 @@ namespace SmartCampus.Business.Services
                 throw new Exception($"Failed to create role-specific entry: {ex.Message}{innerException}. Please check if Department exists in database.");
             }
 
-            // 5. Generate Email Verification Token
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            // 5. Generate Email Verification Token - Admin kullanıcıları için email doğrulaması gerekmez
+            string? verificationUrl = null;
+            string? encodedToken = null;
             
-            // URL-encode the token for safe transmission in URL
-            var encodedToken = System.Net.WebUtility.UrlEncode(token);
-            
-            // Generate verification URL
-            // In development: use localhost, in production: use actual frontend URL
-            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5173";
-            var verificationUrl = $"{frontendUrl}/verify-email?userId={user.Id}&token={encodedToken}";
-            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email!, verificationUrl);
+            // Admin değilse email verification token oluştur ve gönder
+            if (registerDto.Role != UserRole.Admin && !string.IsNullOrEmpty(user.Email))
+            {
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                
+                // URL-encode the token for safe transmission in URL
+                encodedToken = System.Net.WebUtility.UrlEncode(token);
+                
+                // Generate verification URL
+                // In development: use localhost, in production: use actual frontend URL
+                var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5173";
+                verificationUrl = $"{frontendUrl}/verify-email?userId={user.Id}&token={encodedToken}";
+                var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email, verificationUrl);
 
-            await _emailService.SendEmailAsync(user.Email!, "Welcome to Smart Campus - Verify Email", body);
+                await _emailService.SendEmailAsync(user.Email, "Welcome to Smart Campus - Verify Email", body);
+            }
+            else
+            {
+                // Admin kullanıcıları için email'i otomatik olarak doğrula
+                user.EmailConfirmed = true;
+                await _userManager.UpdateAsync(user);
+            }
 
             // Return user with verification URL for frontend
             return new RegisterResponseDto
             {
                 User = _mapper.Map<UserDto>(user),
-                VerificationUrl = verificationUrl,
+                VerificationUrl = verificationUrl ?? string.Empty,
                 VerificationToken = encodedToken // For development - show in UI if mock email
             };
         }
@@ -296,7 +312,7 @@ namespace SmartCampus.Business.Services
         public async Task ResendVerificationEmailAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);
-            if (user == null)
+            if (user == null || string.IsNullOrEmpty(user.Email))
             {
                 // To prevent email enumeration, return silently
                 return;
@@ -325,9 +341,9 @@ namespace SmartCampus.Business.Services
             Console.WriteLine($"   Token (first 50 chars): {token.Substring(0, Math.Min(50, token.Length))}...");
             Console.WriteLine($"   Encoded Token (first 50 chars): {encodedToken.Substring(0, Math.Min(50, encodedToken.Length))}...\n");
             
-            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email!, verificationUrl);
+            var body = SmartCampus.Business.Helpers.EmailTemplates.GetVerificationEmail(user.FirstName ?? user.Email, verificationUrl);
 
-            await _emailService.SendEmailAsync(user.Email!, "Verify your email - Smart Campus", body);
+            await _emailService.SendEmailAsync(user.Email, "Verify your email - Smart Campus", body);
             
             Console.WriteLine($"✅ Verification email sent to: {user.Email}");
         }
@@ -335,7 +351,7 @@ namespace SmartCampus.Business.Services
         public async Task ForgotPasswordAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);
-            if (user == null)
+            if (user == null || string.IsNullOrEmpty(user.Email))
             {
                 // To prevent email enumeration, we might want to return silently
                 // But for now/dev, let's throw or just return
@@ -350,13 +366,13 @@ namespace SmartCampus.Business.Services
             // Generate reset URL
             // In development: use localhost, in production: use actual frontend URL
             var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5173";
-            var resetUrl = $"{frontendUrl}/reset-password?email={System.Net.WebUtility.UrlEncode(user.Email!)}&token={encodedToken}";
+            var resetUrl = $"{frontendUrl}/reset-password?email={System.Net.WebUtility.UrlEncode(user.Email)}&token={encodedToken}";
             var body = SmartCampus.Business.Helpers.EmailTemplates.GetPasswordResetEmail(resetUrl);
 
             // Also log raw token for easy copy-paste in development
             Console.WriteLine($"\n🔑 RAW TOKEN (use this in Swagger): {token}\n");
 
-            await _emailService.SendEmailAsync(user.Email!, "Reset your password", body);
+            await _emailService.SendEmailAsync(user.Email, "Reset your password", body);
         }
 
         public async Task ResetPasswordAsync(string email, string token, string newPassword)
@@ -374,10 +390,10 @@ namespace SmartCampus.Business.Services
             }
 
             // Token decoding - handle potential double encoding (like in VerifyEmailAsync)
-            string tokenToUse = token;
+            string tokenToUse = token ?? string.Empty;
             
             // Check if token contains URL encoding characters
-            if (token.Contains("%"))
+            if (!string.IsNullOrEmpty(token) && token.Contains("%"))
             {
                 Console.WriteLine($"   Token contains % - attempting URL decode...");
                 // Try multiple decodes in case of double encoding

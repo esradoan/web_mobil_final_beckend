@@ -517,85 +517,8 @@ namespace SmartCampus.DataAccess
                 new Cafeteria { Id = 3, Name = "Kütüphane Cafe", Location = "Merkez Kütüphane, 1. Kat", Capacity = 100, IsActive = true, CreatedAt = seedDate }
             );
 
-            // Events Seed Data (Örnek etkinlikler)
-            modelBuilder.Entity<Event>().HasData(
-                new Event 
-                { 
-                    Id = 1, 
-                    Title = "Kariyer Günleri 2024", 
-                    Description = "Sektörün önde gelen şirketlerinin katılımıyla kariyer fırsatları", 
-                    Category = "conference", 
-                    Date = new DateTime(2024, 3, 15),
-                    StartTime = new TimeSpan(9, 0, 0),
-                    EndTime = new TimeSpan(17, 0, 0),
-                    Location = "Kongre Merkezi",
-                    Capacity = 500,
-                    RegisteredCount = 0,
-                    RegistrationDeadline = new DateTime(2024, 3, 10),
-                    IsPaid = false,
-                    Price = 0,
-                    Status = "published",
-                    OrganizerId = 1,
-                    CreatedAt = seedDate
-                },
-                new Event 
-                { 
-                    Id = 2, 
-                    Title = "Yapay Zeka Workshop", 
-                    Description = "ChatGPT ve LLM'ler üzerine uygulamalı workshop", 
-                    Category = "workshop", 
-                    Date = new DateTime(2024, 4, 20),
-                    StartTime = new TimeSpan(14, 0, 0),
-                    EndTime = new TimeSpan(18, 0, 0),
-                    Location = "Bilgisayar Lab 3",
-                    Capacity = 30,
-                    RegisteredCount = 0,
-                    RegistrationDeadline = new DateTime(2024, 4, 15),
-                    IsPaid = true,
-                    Price = 50,
-                    Status = "published",
-                    OrganizerId = 1,
-                    CreatedAt = seedDate
-                },
-                new Event 
-                { 
-                    Id = 3, 
-                    Title = "Bahar Şenliği", 
-                    Description = "Müzik, dans ve eğlence dolu bahar festivali", 
-                    Category = "social", 
-                    Date = new DateTime(2024, 5, 1),
-                    StartTime = new TimeSpan(12, 0, 0),
-                    EndTime = new TimeSpan(22, 0, 0),
-                    Location = "Kampüs Bahçesi",
-                    Capacity = 2000,
-                    RegisteredCount = 0,
-                    RegistrationDeadline = new DateTime(2024, 4, 28),
-                    IsPaid = false,
-                    Price = 0,
-                    Status = "published",
-                    OrganizerId = 1,
-                    CreatedAt = seedDate
-                },
-                new Event 
-                { 
-                    Id = 4, 
-                    Title = "Futbol Turnuvası", 
-                    Description = "Bölümler arası futbol turnuvası", 
-                    Category = "sports", 
-                    Date = new DateTime(2024, 5, 10),
-                    StartTime = new TimeSpan(10, 0, 0),
-                    EndTime = new TimeSpan(18, 0, 0),
-                    Location = "Spor Sahası",
-                    Capacity = 200,
-                    RegisteredCount = 0,
-                    RegistrationDeadline = new DateTime(2024, 5, 5),
-                    IsPaid = false,
-                    Price = 0,
-                    Status = "published",
-                    OrganizerId = 1,
-                    CreatedAt = seedDate
-                }
-            );
+            // Events Seed Data - Admin kullanıcısı oluşturulduktan sonra Program.cs'de ekleniyor
+            // (Foreign key constraint nedeniyle seed data'da eklenemiyor)
         }
     }
 }

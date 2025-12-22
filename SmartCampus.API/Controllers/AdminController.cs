@@ -94,9 +94,9 @@ namespace SmartCampus.API.Controllers
                 var searchLower = search.ToLower();
                 query = query.Where(s =>
                     s.StudentNumber.ToLower().Contains(searchLower) ||
-                    s.User.FirstName.ToLower().Contains(searchLower) ||
-                    s.User.LastName.ToLower().Contains(searchLower) ||
-                    s.User.Email.ToLower().Contains(searchLower));
+                    (s.User != null && s.User.FirstName != null && s.User.FirstName.ToLower().Contains(searchLower)) ||
+                    (s.User != null && s.User.LastName != null && s.User.LastName.ToLower().Contains(searchLower)) ||
+                    (s.User != null && s.User.Email != null && s.User.Email.ToLower().Contains(searchLower)));
             }
 
             var total = await query.CountAsync();
@@ -111,9 +111,9 @@ namespace SmartCampus.API.Controllers
                     Id = s.Id,
                     UserId = s.UserId,
                     StudentNumber = s.StudentNumber,
-                    FirstName = s.User != null ? s.User.FirstName : "",
-                    LastName = s.User != null ? s.User.LastName : "",
-                    Email = s.User != null ? s.User.Email : "",
+                    FirstName = s.User != null ? s.User.FirstName ?? "" : "",
+                    LastName = s.User != null ? s.User.LastName ?? "" : "",
+                    Email = s.User != null ? s.User.Email ?? "" : "",
                     DepartmentId = s.DepartmentId,
                     DepartmentName = s.Department != null ? s.Department.Name : "",
                     GPA = s.GPA,

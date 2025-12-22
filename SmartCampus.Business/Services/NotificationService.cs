@@ -45,7 +45,7 @@ namespace SmartCampus.Business.Services
                     .Include(s => s.Instructor)
                     .FirstOrDefaultAsync(s => s.Id == sectionId);
 
-                if (student == null || section == null) return;
+                if (student == null || section == null || string.IsNullOrEmpty(student.Email)) return;
 
                 var subject = $"✅ Ders Kaydı Onaylandı - {section.Course?.Code}";
                 var body = $@"
@@ -64,7 +64,7 @@ Saygılarımızla,
 Smart Campus Akademik Sistem
 ";
 
-                await _emailService.SendEmailAsync(student.Email, subject, body);
+                await _emailService.SendEmailAsync(student.Email!, subject, body);
                 _logger.LogInformation($"📧 Kayıt bildirimi gönderildi: {student.Email} - {section.Course?.Code}");
             }
             catch (Exception ex)
@@ -86,10 +86,10 @@ Smart Campus Akademik Sistem
                         .ThenInclude(s => s.Course)
                     .FirstOrDefaultAsync(e => e.Id == enrollmentId);
 
-                if (student == null || enrollment == null) return;
+                if (student == null || enrollment == null || string.IsNullOrEmpty(student.Email) || enrollment.Section == null) return;
 
-                var courseName = enrollment.Section?.Course?.Name ?? "Bilinmiyor";
-                var courseCode = enrollment.Section?.Course?.Code ?? "";
+                var courseName = enrollment.Section.Course?.Name ?? "Bilinmiyor";
+                var courseCode = enrollment.Section.Course?.Code ?? "";
 
                 var subject = $"📊 Not Girişi Yapıldı - {courseCode}";
                 var body = $@"
@@ -108,7 +108,7 @@ Saygılarımızla,
 Smart Campus Akademik Sistem
 ";
 
-                await _emailService.SendEmailAsync(student.Email, subject, body);
+                await _emailService.SendEmailAsync(student.Email!, subject, body);
                 _logger.LogInformation($"📧 Not bildirimi gönderildi: {student.Email} - {courseCode}");
             }
             catch (Exception ex)
@@ -129,7 +129,7 @@ Smart Campus Akademik Sistem
                         .ThenInclude(sec => sec.Course)
                     .FirstOrDefaultAsync(s => s.Id == sessionId);
 
-                if (session == null) return;
+                if (session == null || session.Section == null) return;
 
                 // Bu derse kayıtlı öğrencileri al
                 var enrolledStudentIds = await _context.Enrollments
@@ -152,6 +152,8 @@ Smart Campus Akademik Sistem
 
                 foreach (var student in students)
                 {
+                    if (string.IsNullOrEmpty(student.Email)) continue;
+
                     var subject = $"🔔 Yoklama Açıldı - {courseCode}";
                     var body = $@"
 Sayın {student.FirstName} {student.LastName},
@@ -169,7 +171,7 @@ Smart Campus Akademik Sistem
 
                     try
                     {
-                        await _emailService.SendEmailAsync(student.Email, subject, body);
+                        await _emailService.SendEmailAsync(student.Email!, subject, body);
                     }
                     catch
                     {
@@ -198,9 +200,9 @@ Smart Campus Akademik Sistem
                         .ThenInclude(sec => sec.Course)
                     .FirstOrDefaultAsync(s => s.Id == sessionId);
 
-                if (student == null || session == null) return;
+                if (student == null || session == null || string.IsNullOrEmpty(student.Email) || session.Section == null) return;
 
-                var courseName = session.Section?.Course?.Name ?? "Bilinmiyor";
+                var courseName = session.Section.Course?.Name ?? "Bilinmiyor";
 
                 var subject = "✅ Mazeret Talebiniz Onaylandı";
                 var body = $@"
@@ -214,7 +216,7 @@ Saygılarımızla,
 Smart Campus Akademik Sistem
 ";
 
-                await _emailService.SendEmailAsync(student.Email, subject, body);
+                await _emailService.SendEmailAsync(student.Email!, subject, body);
                 _logger.LogInformation($"📧 Mazeret onay bildirimi gönderildi: {student.Email}");
             }
             catch (Exception ex)
@@ -236,9 +238,9 @@ Smart Campus Akademik Sistem
                         .ThenInclude(sec => sec.Course)
                     .FirstOrDefaultAsync(s => s.Id == sessionId);
 
-                if (student == null || session == null) return;
+                if (student == null || session == null || string.IsNullOrEmpty(student.Email) || session.Section == null) return;
 
-                var courseName = session.Section?.Course?.Name ?? "Bilinmiyor";
+                var courseName = session.Section.Course?.Name ?? "Bilinmiyor";
 
                 var subject = "❌ Mazeret Talebiniz Reddedildi";
                 var body = $@"
@@ -254,7 +256,7 @@ Saygılarımızla,
 Smart Campus Akademik Sistem
 ";
 
-                await _emailService.SendEmailAsync(student.Email, subject, body);
+                await _emailService.SendEmailAsync(student.Email!, subject, body);
                 _logger.LogInformation($"📧 Mazeret red bildirimi gönderildi: {student.Email}");
             }
             catch (Exception ex)

@@ -631,6 +631,91 @@ if (!skipMigrations)
                     }
                     logger.LogInformation($"ℹ️ Admin user already exists: {adminEmail}");
                 }
+
+                // Events seed data'sını ekle (admin kullanıcısı oluşturulduktan sonra)
+                var existingEvents = await context.Events.CountAsync();
+                if (existingEvents == 0 && adminUser != null)
+                {
+                    var events = new List<Event>
+                    {
+                        new Event 
+                        { 
+                            Title = "Kariyer Günleri 2024", 
+                            Description = "Sektörün önde gelen şirketlerinin katılımıyla kariyer fırsatları", 
+                            Category = "conference", 
+                            Date = new DateTime(2024, 3, 15),
+                            StartTime = new TimeSpan(9, 0, 0),
+                            EndTime = new TimeSpan(17, 0, 0),
+                            Location = "Kongre Merkezi",
+                            Capacity = 500,
+                            RegisteredCount = 0,
+                            RegistrationDeadline = new DateTime(2024, 3, 10),
+                            IsPaid = false,
+                            Price = 0,
+                            Status = "published",
+                            OrganizerId = adminUser.Id,
+                            CreatedAt = DateTime.UtcNow
+                        },
+                        new Event 
+                        { 
+                            Title = "Yapay Zeka Workshop", 
+                            Description = "ChatGPT ve LLM'ler üzerine uygulamalı workshop", 
+                            Category = "workshop", 
+                            Date = new DateTime(2024, 4, 20),
+                            StartTime = new TimeSpan(14, 0, 0),
+                            EndTime = new TimeSpan(18, 0, 0),
+                            Location = "Bilgisayar Lab 3",
+                            Capacity = 30,
+                            RegisteredCount = 0,
+                            RegistrationDeadline = new DateTime(2024, 4, 15),
+                            IsPaid = true,
+                            Price = 50,
+                            Status = "published",
+                            OrganizerId = adminUser.Id,
+                            CreatedAt = DateTime.UtcNow
+                        },
+                        new Event 
+                        { 
+                            Title = "Bahar Şenliği", 
+                            Description = "Müzik, dans ve eğlence dolu bahar festivali", 
+                            Category = "social", 
+                            Date = new DateTime(2024, 5, 1),
+                            StartTime = new TimeSpan(12, 0, 0),
+                            EndTime = new TimeSpan(22, 0, 0),
+                            Location = "Kampüs Bahçesi",
+                            Capacity = 2000,
+                            RegisteredCount = 0,
+                            RegistrationDeadline = new DateTime(2024, 4, 28),
+                            IsPaid = false,
+                            Price = 0,
+                            Status = "published",
+                            OrganizerId = adminUser.Id,
+                            CreatedAt = DateTime.UtcNow
+                        },
+                        new Event 
+                        { 
+                            Title = "Futbol Turnuvası", 
+                            Description = "Bölümler arası futbol turnuvası", 
+                            Category = "sports", 
+                            Date = new DateTime(2024, 5, 10),
+                            StartTime = new TimeSpan(10, 0, 0),
+                            EndTime = new TimeSpan(18, 0, 0),
+                            Location = "Spor Sahası",
+                            Capacity = 200,
+                            RegisteredCount = 0,
+                            RegistrationDeadline = new DateTime(2024, 5, 5),
+                            IsPaid = false,
+                            Price = 0,
+                            Status = "published",
+                            OrganizerId = adminUser.Id,
+                            CreatedAt = DateTime.UtcNow
+                        }
+                    };
+
+                    context.Events.AddRange(events);
+                    await context.SaveChangesAsync();
+                    logger.LogInformation($"✅ Created {events.Count} sample events");
+                }
             }
         }
         catch (Exception ex)
