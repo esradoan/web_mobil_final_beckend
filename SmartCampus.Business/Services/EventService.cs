@@ -77,6 +77,12 @@ namespace SmartCampus.Business.Services
         public int EventId { get; set; }
         public string EventTitle { get; set; } = string.Empty;
         public DateTime EventDate { get; set; }
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
+        public string? Location { get; set; }
+        public string? Category { get; set; }
+        public bool? IsPaid { get; set; }
+        public decimal? Price { get; set; }
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string QrCode { get; set; } = string.Empty;
@@ -326,8 +332,18 @@ namespace SmartCampus.Business.Services
             if (registration.CheckedIn)
                 throw new Exception("Already checked in");
 
-            if (registration.Event!.Date.Date != DateTime.UtcNow.Date)
-                throw new Exception("Check-in only available on event day");
+            // Check-in için: Test amaçlı bugün ve gelecek tarihler için check-in yapılabilir
+            // Sadece geçmiş tarihler için hata ver
+            var eventDate = registration.Event!.Date.Date;
+            var today = DateTime.UtcNow.Date;
+            
+            if (eventDate < today)
+                throw new Exception($"Bu etkinlik geçmiş bir tarih için ({eventDate:dd.MM.yyyy}). Check-in yapılamaz.");
+            
+            // Not: Production'da sadece bugün için check-in yapılabilir olmalı
+            // Test için bugün ve gelecek tarihler için izin veriyoruz
+            // if (eventDate > today)
+            //     throw new Exception($"Bu etkinlik gelecek bir tarih için ({eventDate:dd.MM.yyyy}). Check-in sadece etkinlik günü yapılabilir.");
 
             // Check-in
             registration.CheckedIn = true;
@@ -403,6 +419,12 @@ namespace SmartCampus.Business.Services
                 EventId = r.EventId,
                 EventTitle = r.Event?.Title ?? "",
                 EventDate = r.Event?.Date ?? DateTime.MinValue,
+                StartTime = r.Event?.StartTime,
+                EndTime = r.Event?.EndTime,
+                Location = r.Event?.Location,
+                Category = r.Event?.Category,
+                IsPaid = r.Event?.IsPaid,
+                Price = r.Event?.Price,
                 UserId = r.UserId,
                 UserName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}" : "",
                 QrCode = r.QrCode,

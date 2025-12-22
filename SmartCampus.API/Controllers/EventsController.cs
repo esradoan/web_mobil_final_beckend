@@ -148,6 +148,11 @@ namespace SmartCampus.API.Controllers
         [Authorize(Roles = "Admin,Faculty")]
         public async Task<IActionResult> CheckIn(int eventId, [FromBody] CheckInDto dto)
         {
+            // Debug: Check user roles
+            var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role || c.Type == "role").Select(c => c.Value).ToList();
+            Console.WriteLine($"🔍 CheckIn - User ID: {GetUserId()}, Roles: [{string.Join(", ", userRoles)}]");
+            Console.WriteLine($"🔍 IsInRole Admin: {User.IsInRole("Admin")}, IsInRole Faculty: {User.IsInRole("Faculty")}");
+            
             try
             {
                 var result = await _eventService.CheckInAsync(eventId, dto.QrCode);

@@ -633,88 +633,168 @@ if (!skipMigrations)
                 }
 
                 // Events seed data'sını ekle (admin kullanıcısı oluşturulduktan sonra)
-                var existingEvents = await context.Events.CountAsync();
-                if (existingEvents == 0 && adminUser != null)
+                // Development ortamında mevcut etkinlikleri silip yenilerini ekle
+                if (adminUser != null)
                 {
+                    // Development'ta mevcut seed etkinlikleri sil (sadece test amaçlı)
+                    if (builder.Environment.IsDevelopment())
+                    {
+                        var oldEvents = await context.Events
+                            .Where(e => e.OrganizerId == adminUser.Id && 
+                                       (e.Title.Contains("Kariyer Günleri") || 
+                                        e.Title.Contains("Yapay Zeka Workshop") || 
+                                        e.Title.Contains("Bahar Şenliği") || 
+                                        e.Title.Contains("Futbol Turnuvası") ||
+                                        e.Title.Contains("Teknoloji Konferansı") ||
+                                        e.Title.Contains("Web Geliştirme")))
+                            .ToListAsync();
+                        
+                        if (oldEvents.Any())
+                        {
+                            // Önce kayıtları sil
+                            var oldEventIds = oldEvents.Select(e => e.Id).ToList();
+                            var oldRegistrations = await context.EventRegistrations
+                                .Where(r => oldEventIds.Contains(r.EventId))
+                                .ToListAsync();
+                            context.EventRegistrations.RemoveRange(oldRegistrations);
+                            
+                            // Sonra etkinlikleri sil
+                            context.Events.RemoveRange(oldEvents);
+                            await context.SaveChangesAsync();
+                            logger.LogInformation($"🗑️ Removed {oldEvents.Count} old seed events");
+                        }
+                    }
+                    
+                    // Yeni etkinlikleri ekle (eğer yoksa veya development'ta)
+                    var existingEventsCount = await context.Events.CountAsync();
+                    var today = DateTime.UtcNow.Date;
+                    var hasRecentEvents = await context.Events
+                        .AnyAsync(e => e.Date >= today);
+                    
+                    if (existingEventsCount == 0 || (builder.Environment.IsDevelopment() && !hasRecentEvents))
+                    {
                     var events = new List<Event>
                     {
+                        // Bugün için etkinlik
                         new Event 
                         { 
-                            Title = "Kariyer Günleri 2024", 
-                            Description = "Sektörün önde gelen şirketlerinin katılımıyla kariyer fırsatları", 
+                            Title = "Kariyer Günleri 2025", 
+                            Description = "Sektörün önde gelen şirketlerinin katılımıyla kariyer fırsatları. CV hazırlama, mülakat teknikleri ve networking fırsatları.", 
                             Category = "conference", 
-                            Date = new DateTime(2024, 3, 15),
+                            Date = today,
                             StartTime = new TimeSpan(9, 0, 0),
                             EndTime = new TimeSpan(17, 0, 0),
                             Location = "Kongre Merkezi",
                             Capacity = 500,
                             RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 3, 10),
+                            RegistrationDeadline = today.AddDays(1), // Yarın son gün
                             IsPaid = false,
                             Price = 0,
                             Status = "published",
                             OrganizerId = adminUser.Id,
                             CreatedAt = DateTime.UtcNow
                         },
+                        // 3 gün sonra
                         new Event 
                         { 
                             Title = "Yapay Zeka Workshop", 
-                            Description = "ChatGPT ve LLM'ler üzerine uygulamalı workshop", 
+                            Description = "ChatGPT ve LLM'ler üzerine uygulamalı workshop. Prompt engineering, fine-tuning ve pratik uygulamalar.", 
                             Category = "workshop", 
-                            Date = new DateTime(2024, 4, 20),
+                            Date = today.AddDays(3),
                             StartTime = new TimeSpan(14, 0, 0),
                             EndTime = new TimeSpan(18, 0, 0),
                             Location = "Bilgisayar Lab 3",
                             Capacity = 30,
                             RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 4, 15),
+                            RegistrationDeadline = today.AddDays(2),
                             IsPaid = true,
                             Price = 50,
                             Status = "published",
                             OrganizerId = adminUser.Id,
                             CreatedAt = DateTime.UtcNow
                         },
+                        // 1 hafta sonra
                         new Event 
                         { 
                             Title = "Bahar Şenliği", 
-                            Description = "Müzik, dans ve eğlence dolu bahar festivali", 
+                            Description = "Müzik, dans ve eğlence dolu bahar festivali. Canlı müzik, yemek standları ve eğlenceli aktiviteler.", 
                             Category = "social", 
-                            Date = new DateTime(2024, 5, 1),
+                            Date = today.AddDays(7),
                             StartTime = new TimeSpan(12, 0, 0),
                             EndTime = new TimeSpan(22, 0, 0),
                             Location = "Kampüs Bahçesi",
                             Capacity = 2000,
                             RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 4, 28),
+                            RegistrationDeadline = today.AddDays(6),
                             IsPaid = false,
                             Price = 0,
                             Status = "published",
                             OrganizerId = adminUser.Id,
                             CreatedAt = DateTime.UtcNow
                         },
+                        // 2 hafta sonra
                         new Event 
                         { 
                             Title = "Futbol Turnuvası", 
-                            Description = "Bölümler arası futbol turnuvası", 
+                            Description = "Bölümler arası futbol turnuvası. Final maçı ve ödül töreni ile birlikte.", 
                             Category = "sports", 
-                            Date = new DateTime(2024, 5, 10),
+                            Date = today.AddDays(14),
                             StartTime = new TimeSpan(10, 0, 0),
                             EndTime = new TimeSpan(18, 0, 0),
                             Location = "Spor Sahası",
                             Capacity = 200,
                             RegisteredCount = 0,
-                            RegistrationDeadline = new DateTime(2024, 5, 5),
+                            RegistrationDeadline = today.AddDays(12),
                             IsPaid = false,
                             Price = 0,
+                            Status = "published",
+                            OrganizerId = adminUser.Id,
+                            CreatedAt = DateTime.UtcNow
+                        },
+                        // 1 ay sonra - Ücretli konferans
+                        new Event 
+                        { 
+                            Title = "Teknoloji Konferansı 2025", 
+                            Description = "Yazılım geliştirme, cloud computing ve DevOps konularında uzman konuşmacılar. Networking fırsatları ve workshop'lar.", 
+                            Category = "conference", 
+                            Date = today.AddDays(30),
+                            StartTime = new TimeSpan(9, 0, 0),
+                            EndTime = new TimeSpan(18, 0, 0),
+                            Location = "Kongre Merkezi",
+                            Capacity = 300,
+                            RegisteredCount = 0,
+                            RegistrationDeadline = today.AddDays(25),
+                            IsPaid = true,
+                            Price = 150,
+                            Status = "published",
+                            OrganizerId = adminUser.Id,
+                            CreatedAt = DateTime.UtcNow
+                        },
+                        // 5 gün sonra - Workshop
+                        new Event 
+                        { 
+                            Title = "Web Geliştirme Bootcamp", 
+                            Description = "React, Node.js ve modern web teknolojileri üzerine 2 günlük intensive bootcamp. Pratik projeler ve sertifika.", 
+                            Category = "workshop", 
+                            Date = today.AddDays(5),
+                            StartTime = new TimeSpan(10, 0, 0),
+                            EndTime = new TimeSpan(16, 0, 0),
+                            Location = "Bilgisayar Lab 1",
+                            Capacity = 25,
+                            RegisteredCount = 0,
+                            RegistrationDeadline = today.AddDays(4),
+                            IsPaid = true,
+                            Price = 75,
                             Status = "published",
                             OrganizerId = adminUser.Id,
                             CreatedAt = DateTime.UtcNow
                         }
                     };
 
-                    context.Events.AddRange(events);
-                    await context.SaveChangesAsync();
-                    logger.LogInformation($"✅ Created {events.Count} sample events");
+                        context.Events.AddRange(events);
+                        await context.SaveChangesAsync();
+                        logger.LogInformation($"✅ Created {events.Count} sample events with dates from today ({today:yyyy-MM-dd}) onwards");
+                    }
                 }
 
                 // Meal Menus seed data'sını ekle
