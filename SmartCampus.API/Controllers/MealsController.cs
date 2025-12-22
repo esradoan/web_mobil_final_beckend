@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartCampus.Business.Services;
 using System.Security.Claims;
+using System.Linq;
 
 namespace SmartCampus.API.Controllers
 {
@@ -155,12 +156,42 @@ namespace SmartCampus.API.Controllers
         }
 
         /// <summary>
+        /// QR kod ile rezervasyon doğrulama (Cafeteria Staff) - Status değiştirmez
+        /// </summary>
+        [HttpPost("reservations/validate")]
+        [Authorize(Roles = "Admin,Faculty")]
+        public async Task<IActionResult> ValidateReservation([FromBody] UseReservationDto dto)
+        {
+            // Debug: Check user roles
+            var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role || c.Type == "role").Select(c => c.Value).ToList();
+            Console.WriteLine($"🔍 ValidateReservation - User ID: {GetUserId()}, Roles: [{string.Join(", ", userRoles)}]");
+            Console.WriteLine($"🔍 IsInRole Admin: {User.IsInRole("Admin")}, IsInRole Faculty: {User.IsInRole("Faculty")}");
+            
+            try
+            {
+                var result = await _mealService.ValidateReservationByQrCodeAsync(dto.QrCode);
+                if (result == null)
+                    return NotFound(new { message = "Reservation not found", error = "NotFound" });
+                return Ok(new { message = "Reservation validated", reservation = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = "ValidationFailed" });
+            }
+        }
+
+        /// <summary>
         /// QR kod ile yemek kullanımı (Cafeteria Staff)
         /// </summary>
         [HttpPost("reservations/use")]
         [Authorize(Roles = "Admin,Faculty")]
         public async Task<IActionResult> UseReservation([FromBody] UseReservationDto dto)
         {
+            // Debug: Check user roles
+            var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role || c.Type == "role").Select(c => c.Value).ToList();
+            Console.WriteLine($"🔍 UseReservation - User ID: {GetUserId()}, Roles: [{string.Join(", ", userRoles)}]");
+            Console.WriteLine($"🔍 IsInRole Admin: {User.IsInRole("Admin")}, IsInRole Faculty: {User.IsInRole("Faculty")}");
+            
             try
             {
                 var result = await _mealService.UseReservationAsync(dto.QrCode);

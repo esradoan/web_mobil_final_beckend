@@ -18,6 +18,7 @@ namespace SmartCampus.Business.Services
         Task<MealReservationDto> CreateReservationAsync(int userId, CreateMealReservationDto dto);
         Task<bool> CancelReservationAsync(int userId, int reservationId);
         Task<List<MealReservationDto>> GetMyReservationsAsync(int userId);
+        Task<MealReservationDto?> ValidateReservationByQrCodeAsync(string qrCode);
         Task<MealReservationDto?> UseReservationAsync(string qrCode);
         
         // Cafeteria Operations
@@ -83,6 +84,8 @@ namespace SmartCampus.Business.Services
         public DateTime? UsedAt { get; set; }
         public bool IsScholarship { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string UserEmail { get; set; } = string.Empty;
     }
 
     public class CreateMealReservationDto
@@ -282,6 +285,33 @@ namespace SmartCampus.Business.Services
             _context.MealReservations.Add(reservation);
             await _context.SaveChangesAsync();
 
+            // If paid, deduct from wallet immediately (rezervasyon oluşturulurken düşür)
+            if (!isScholarship && amount > 0)
+            {
+                var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+                if (wallet != null)
+                {
+                    wallet.Balance -= amount;
+                    wallet.UpdatedAt = DateTime.UtcNow;
+
+                    // Create debit transaction
+                    var transaction = new Transaction
+                    {
+                        WalletId = wallet.Id,
+                        Type = "debit",
+                        Amount = amount,
+                        BalanceAfter = wallet.Balance,
+                        ReferenceType = "meal_reservation",
+                        ReferenceId = reservation.Id,
+                        Description = $"Yemek rezervasyonu - {menu.Date:dd.MM.yyyy} {menu.MealType}",
+                        Status = "completed",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Transactions.Add(transaction);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             reservation.Menu = menu;
             reservation.Cafeteria = menu.Cafeteria;
 
@@ -348,6 +378,7 @@ namespace SmartCampus.Business.Services
             var reservations = await _context.MealReservations
                 .Include(r => r.Menu)
                 .Include(r => r.Cafeteria)
+                .Include(r => r.User)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.Date)
                 .ToListAsync();
@@ -355,33 +386,68 @@ namespace SmartCampus.Business.Services
             return reservations.Select(MapToReservationDto).ToList();
         }
 
+        public async Task<MealReservationDto?> ValidateReservationByQrCodeAsync(string qrCode)
+        {
+            if (string.IsNullOrWhiteSpace(qrCode))
+                throw new Exception("QR kod boş olamaz");
+
+            var reservation = await _context.MealReservations
+                .Include(r => r.Menu)
+                .Include(r => r.Cafeteria)
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.QrCode == qrCode);
+
+            if (reservation == null)
+                throw new Exception("Geçersiz QR kod. Rezervasyon bulunamadı.");
+
+            if (reservation.Status == "used")
+                throw new Exception("Bu rezervasyon zaten kullanılmış");
+
+            if (reservation.Status == "cancelled")
+                throw new Exception("Bu rezervasyon iptal edilmiş");
+
+            // Tarih kontrolü: Bugün veya gelecek tarihler için geçerli olabilir
+            if (reservation.Date.Date < DateTime.UtcNow.Date)
+                throw new Exception($"Bu rezervasyon geçmiş bir tarih için ({reservation.Date.Date:dd.MM.yyyy}). Sadece bugün ve gelecek tarihler için geçerlidir.");
+
+            // Sadece bilgileri döndür, status'u değiştirme
+            return MapToReservationDto(reservation);
+        }
+
         public async Task<MealReservationDto?> UseReservationAsync(string qrCode)
         {
             var reservation = await _context.MealReservations
                 .Include(r => r.Menu)
                 .Include(r => r.Cafeteria)
+                .Include(r => r.User)
                 .FirstOrDefaultAsync(r => r.QrCode == qrCode);
 
             if (reservation == null)
-                throw new Exception("Invalid QR code");
+                throw new Exception("Geçersiz QR kod");
 
             if (reservation.Status == "used")
-                throw new Exception("This reservation has already been used");
+                throw new Exception("Bu rezervasyon zaten kullanılmış");
 
             if (reservation.Status == "cancelled")
-                throw new Exception("This reservation was cancelled");
+                throw new Exception("Bu rezervasyon iptal edilmiş");
 
-            if (reservation.Date.Date != DateTime.UtcNow.Date)
-                throw new Exception("This reservation is not valid for today");
+            // Kullanım için: Bugün veya gelecek tarihler için geçerli olabilir (sadece geçmiş tarihler için hata ver)
+            if (reservation.Date.Date < DateTime.UtcNow.Date)
+                throw new Exception($"Bu rezervasyon geçmiş bir tarih için ({reservation.Date.Date:dd.MM.yyyy}). Sadece bugün ve gelecek tarihler için kullanılabilir.");
 
             // Mark as used
             reservation.Status = "used";
             reservation.UsedAt = DateTime.UtcNow;
             reservation.UpdatedAt = DateTime.UtcNow;
 
-            // If paid, deduct from wallet
-            if (!reservation.IsScholarship && reservation.Amount > 0)
+            // Note: Bakiye rezervasyon oluşturulurken düşürüldü, burada sadece status güncelleniyor
+            // Eğer daha önce düşürülmemişse (eski rezervasyonlar için) düşür
+            var existingTransaction = await _context.Transactions
+                .FirstOrDefaultAsync(t => t.ReferenceType == "meal_reservation" && t.ReferenceId == reservation.Id);
+            
+            if (existingTransaction == null && !reservation.IsScholarship && reservation.Amount > 0)
             {
+                // Eski rezervasyonlar için backward compatibility
                 var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == reservation.UserId);
                 if (wallet != null)
                 {
@@ -479,6 +545,14 @@ namespace SmartCampus.Business.Services
                 catch { }
             }
 
+            var userName = "";
+            var userEmail = "";
+            if (reservation.User != null)
+            {
+                userName = $"{reservation.User.FirstName} {reservation.User.LastName}".Trim();
+                userEmail = reservation.User.Email ?? "";
+            }
+
             return new MealReservationDto
             {
                 Id = reservation.Id,
@@ -492,7 +566,9 @@ namespace SmartCampus.Business.Services
                 Status = reservation.Status,
                 UsedAt = reservation.UsedAt,
                 IsScholarship = reservation.IsScholarship,
-                CreatedAt = reservation.CreatedAt
+                CreatedAt = reservation.CreatedAt,
+                UserName = userName,
+                UserEmail = userEmail
             };
         }
     }
