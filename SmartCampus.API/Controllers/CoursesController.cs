@@ -86,6 +86,20 @@ namespace SmartCampus.API.Controllers
                 return NotFound(new { message = "Course not found", error = "NotFound" });
             return NoContent();
         }
+
+        /// <summary>
+        /// Section listesi - courses altında (Frontend uyumluluğu için)
+        /// </summary>
+        [HttpGet("sections")]
+        public async Task<IActionResult> GetCourseSections(
+            [FromQuery] string? semester = null,
+            [FromQuery] int? year = null,
+            [FromQuery] int? instructorId = null,
+            [FromQuery] int? courseId = null)
+        {
+            var sections = await _courseService.GetSectionsAsync(semester, year, instructorId, courseId);
+            return Ok(new { data = sections });
+        }
     }
 
     [ApiController]

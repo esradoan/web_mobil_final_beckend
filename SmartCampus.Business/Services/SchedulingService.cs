@@ -570,10 +570,11 @@ namespace SmartCampus.Business.Services
 
         public async Task<List<ScheduleDto>> GetMyScheduleAsync(int userId, string semester, int year)
         {
-            // Check if user is instructor
+            // Check if user is instructor (faculty)
             var faculty = await _context.Faculties.FirstOrDefaultAsync(f => f.UserId == userId);
             if (faculty != null)
             {
+                // For faculty, InstructorId in CourseSection is the User.Id
                 var instructorSchedules = await _context.Schedules
                     .Include(s => s.Section)
                         .ThenInclude(sec => sec!.Course)
@@ -593,9 +594,9 @@ namespace SmartCampus.Business.Services
             var student = await _context.Students.FirstOrDefaultAsync(s => s.UserId == userId);
             if (student != null)
             {
-                // Get enrolled sections (accept both "Active" and "enrolled" status)
+                // Get enrolled sections - Enrollment.StudentId references Student.Id, not User.Id
                 var enrolledSectionIds = await _context.Enrollments
-                    .Where(e => e.StudentId == userId && (e.Status == "Active" || e.Status == "enrolled"))
+                    .Where(e => e.StudentId == student.Id && (e.Status == "Active" || e.Status == "enrolled"))
                     .Select(e => e.SectionId)
                     .ToListAsync();
 
@@ -614,7 +615,19 @@ namespace SmartCampus.Business.Services
                 return studentSchedules.Select(MapToScheduleDto).ToList();
             }
 
-            return new List<ScheduleDto>();
+            // For Admin users, return all schedules for the semester
+            var adminSchedules = await _context.Schedules
+                .Include(s => s.Section)
+                    .ThenInclude(sec => sec!.Course)
+                .Include(s => s.Section)
+                    .ThenInclude(sec => sec!.Instructor)
+                .Include(s => s.Classroom)
+                .Where(s => s.Semester == semester && s.Year == year && s.IsActive)
+                .OrderBy(s => s.DayOfWeek)
+                .ThenBy(s => s.StartTime)
+                .ToListAsync();
+
+            return adminSchedules.Select(MapToScheduleDto).ToList();
         }
 
         public async Task<string> ExportToICalAsync(int userId, string semester, int year)
