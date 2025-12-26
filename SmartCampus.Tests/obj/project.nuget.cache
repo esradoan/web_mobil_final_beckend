@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "1O0TIGoZq5A=",
+  "dgSpecHash": "tLar2nB2+EA=",
   "success": true,
-  "projectFilePath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj",
+  "projectFilePath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\taski\\.nuget\\packages\\automapper\\12.0.1\\automapper.12.0.1.nupkg.sha512",
     "C:\\Users\\taski\\.nuget\\packages\\automapper.extensions.microsoft.dependencyinjection\\12.0.1\\automapper.extensions.microsoft.dependencyinjection.12.0.1.nupkg.sha512",

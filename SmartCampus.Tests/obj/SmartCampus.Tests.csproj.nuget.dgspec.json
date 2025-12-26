@@ -1,7 +1,7 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj": {}
+    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj": {}
   },
   "projects": {
     "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj": {
@@ -379,14 +379,14 @@
         }
       }
     },
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj": {
+    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj",
+        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj",
         "projectName": "SmartCampus.Tests",
-        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj",
+        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj",
         "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Tests\\obj\\",
+        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

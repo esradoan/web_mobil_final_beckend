@@ -554,9 +554,9 @@ if (!skipMigrations)
             {
                 // Manually apply Part 4 migration and sync history (workaround for existing DB)
                 logger.LogInformation("🛠️ Executing manual migration helper for Part 4...");
-                DbMigrationHelper.ApplyPart4Migration(context);
+                DbMigrationHelper.ApplyPart4Migration(context); // Will return if fresh DB
 
-                logger.LogInformation("🔄 Checking for pending migrations...");
+                logger.LogInformation("🔄 Checking for pending migrations (EF Core standard)...");
                 var pendingMigrations = context.Database.GetPendingMigrations().ToList();
                 if (pendingMigrations.Any())
                 {

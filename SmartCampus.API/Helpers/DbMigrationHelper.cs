@@ -11,15 +11,29 @@ namespace SmartCampus.API.Helpers
             {
                 // Check if migration already applied
                 var historyExists = context.Database.ExecuteSqlRaw("SELECT 1 FROM `__EFMigrationsHistory` WHERE `MigrationId` = '20251226152803_ImplementedPart4Entities'");
-                // ExecuteSqlRaw returns number of rows affected usually, but for SELECT it might be different.
-                // Better approach: Use a proper check or just try-catch the create table.
-                
-                // Let's assume if IoTSensors table exists, we are good.
-                // But let's verify via exception.
             }
             catch
             {
                 // Ignore check errors
+            }
+
+            // SAFETY CHECK: If Identity tables don't exist, this is a FRESH database.
+            // We should let EF Core's standard Migrate() handle everything in that case.
+            // We only need this manual helper if we are "patching" an existing DB.
+            try
+            {
+                // Check if AspNetUsers exists (MySQL syntax)
+                var tableExists = context.Database.ExecuteSqlRaw("SELECT 1 FROM `AspNetUsers` LIMIT 1");
+                // If this throws or returns 0 (though ExecuteSqlRaw returns affected rows not result), 
+                // actually ExecuteSqlRaw is for commands. Querying is harder. 
+                // Let's use a dummy query wrapped in try/catch.
+                
+                 context.Database.ExecuteSqlRaw("SELECT Id FROM `AspNetUsers` LIMIT 1");
+            }
+            catch
+            {
+                Console.WriteLine("⚠️ AspNetUsers table not found. Skipping manual Part 4 migration (Assuming Fresh DB).");
+                return;
             }
 
             var sql = @"
