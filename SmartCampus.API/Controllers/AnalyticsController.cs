@@ -106,5 +106,41 @@ namespace SmartCampus.API.Controllers
             var result = await _analyticsService.GetCampusAnalyticsAsync();
             return Ok(result);
         }
+
+        /// <summary>
+        /// Section raporunu PDF olarak indir
+        /// </summary>
+        [HttpGet("sections/{sectionId}/export/pdf")]
+        [Authorize(Roles = "Faculty,Admin")]
+        public async Task<IActionResult> ExportSectionPdf(int sectionId)
+        {
+            try
+            {
+                var pdfBytes = await _analyticsService.ExportSectionReportAsync(sectionId);
+                return File(pdfBytes, "application/pdf", $"AttendanceReport_Section{sectionId}_{DateTime.Now:yyyyMMdd}.pdf");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Section raporunu Excel (CSV) olarak indir
+        /// </summary>
+        [HttpGet("sections/{sectionId}/export/excel")]
+        [Authorize(Roles = "Faculty,Admin")]
+        public async Task<IActionResult> ExportSectionExcel(int sectionId)
+        {
+             try
+            {
+                var csvBytes = await _analyticsService.ExportSectionReportToExcelAsync(sectionId);
+                return File(csvBytes, "text/csv", $"AttendanceReport_Section{sectionId}_{DateTime.Now:yyyyMMdd}.csv");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

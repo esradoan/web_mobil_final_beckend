@@ -17,6 +17,12 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.FileProviders; // Static files için
 using System.Collections.Generic;
+using SmartCampus.API.Helpers; // Added for manual migration helper
+using SmartCampus.API.Services; // Added for Hub Services
+using QuestPDF.Infrastructure; // For PDF Export
+
+// Set QuestPDF License (Free Community License)
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -373,6 +379,9 @@ builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IGradeCalculationService, GradeCalculationService>();
 builder.Services.AddScoped<ITranscriptPdfService, TranscriptPdfService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<INotificationHubService, NotificationHubService>();
+builder.Services.AddScoped<ISensorHubService, SensorHubService>();
+builder.Services.AddScoped<IIoTSensorService, IoTSensorService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IAttendanceAnalyticsService, AttendanceAnalyticsService>();
 
@@ -543,6 +552,10 @@ if (!skipMigrations)
             
             if (connected)
             {
+                // Manually apply Part 4 migration and sync history (workaround for existing DB)
+                logger.LogInformation("🛠️ Executing manual migration helper for Part 4...");
+                DbMigrationHelper.ApplyPart4Migration(context);
+
                 logger.LogInformation("🔄 Checking for pending migrations...");
                 var pendingMigrations = context.Database.GetPendingMigrations().ToList();
                 if (pendingMigrations.Any())
@@ -973,6 +986,8 @@ app.MapControllers();
 
 // SignalR Hub Endpoints
 app.MapHub<SmartCampus.API.Hubs.AttendanceHub>("/hubs/attendance");
+app.MapHub<SmartCampus.API.Hubs.NotificationHub>("/hubs/notifications");
+app.MapHub<SmartCampus.API.Hubs.SensorHub>("/hubs/sensors");
 
 // Railway ve diğer platformlar için PORT environment variable'ını kullan
 // Yerel geliştirmede PORT yoksa launchSettings.json kullanılır

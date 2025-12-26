@@ -1,4 +1,5 @@
 using SmartCampus.DataAccess;
+using SmartCampus.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -6,6 +7,15 @@ namespace SmartCampus.Business.Services
 {
     public interface INotificationService
     {
+        // General Purpose Methods
+        Task SendNotificationAsync(int userId, string title, string message, string type, string? refType = null, string? refId = null);
+        Task<IEnumerable<Notification>> GetUserNotificationsAsync(int userId, int page = 1, int pageSize = 20);
+        Task<int> GetUnreadCountAsync(int userId);
+        Task MarkAsReadAsync(int notificationId, int userId);
+        Task MarkAllAsReadAsync(int userId);
+        Task DeleteNotificationAsync(int notificationId, int userId);
+
+        // Specialized Business Methods
         Task SendEnrollmentConfirmationAsync(int studentId, int sectionId);
         Task SendGradeNotificationAsync(int studentId, int enrollmentId);
         Task SendSessionStartNotificationAsync(int sectionId, int sessionId);
@@ -14,255 +24,240 @@ namespace SmartCampus.Business.Services
     }
 
     /// <summary>
-    /// Bildirim servisi - Email bildirimleri gönderir
+    /// Bildirim servisi - Database, SignalR ve Email bildirimleri yönetir
     /// </summary>
     public class NotificationService : INotificationService
     {
         private readonly CampusDbContext _context;
         private readonly IEmailService _emailService;
+        private readonly INotificationHubService _hubService;
         private readonly ILogger<NotificationService> _logger;
 
         public NotificationService(
             CampusDbContext context,
             IEmailService emailService,
+            INotificationHubService hubService,
             ILogger<NotificationService> logger)
         {
             _context = context;
             _emailService = emailService;
+            _hubService = hubService;
             _logger = logger;
         }
 
-        /// <summary>
-        /// Ders kaydı onay bildirimi
-        /// </summary>
+        public async Task SendNotificationAsync(int userId, string title, string message, string type, string? refType = null, string? refId = null)
+        {
+            try
+            {
+                // 1. Save to Database
+                var notification = new Notification
+                {
+                    UserId = userId,
+                    Title = title,
+                    Message = message,
+                    Type = type,
+                    ReferenceType = refType,
+                    ReferenceId = refId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Notifications.Add(notification);
+                await _context.SaveChangesAsync();
+
+                // 2. Send via SignalR (Real-time)
+                await _hubService.SendNotificationToUserAsync(userId.ToString(), new
+                {
+                    id = notification.Id,
+                    title = notification.Title,
+                    message = notification.Message,
+                    type = notification.Type,
+                    createdAt = notification.CreatedAt,
+                    isRead = false
+                });
+
+                // 3. Send via Email (Check preferences)
+                await CheckAndSendEmailAsync(userId, title, message, type);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to send notification to user {userId}");
+            }
+        }
+
+        private async Task CheckAndSendEmailAsync(int userId, string title, string message, string type)
+        {
+            try
+            {
+                // Check preferences
+                var prefs = await _context.NotificationPreferences
+                    .FirstOrDefaultAsync(p => p.UserId == userId);
+                
+                // Default to true if no prefs
+                bool emailEnabled = prefs?.EmailEnabled ?? true;
+                
+                // Check granular if needed (assuming generic mapping for now)
+                if (type == "Academic" && prefs != null && !prefs.AcademicNotifications) emailEnabled = false;
+                if (type == "Attendance" && prefs != null && !prefs.AttendanceNotifications) emailEnabled = false;
+
+                if (!emailEnabled) return;
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user != null && !string.IsNullOrEmpty(user.Email))
+                {
+                    await _emailService.SendEmailAsync(user.Email, title, message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Email sending failed for user {userId}: {ex.Message}");
+            }
+        }
+
+        public async Task<IEnumerable<Notification>> GetUserNotificationsAsync(int userId, int page = 1, int pageSize = 20)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsDeleted)
+                .OrderByDescending(n => n.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
+
+        public async Task<int> GetUnreadCountAsync(int userId)
+        {
+            return await _context.Notifications
+                .CountAsync(n => n.UserId == userId && !n.IsRead && !n.IsDeleted);
+        }
+
+        public async Task MarkAsReadAsync(int notificationId, int userId)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
+            
+            if (notification != null)
+            {
+                notification.IsRead = true;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task MarkAllAsReadAsync(int userId)
+        {
+            var unread = await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .ToListAsync();
+
+            if (unread.Any())
+            {
+                foreach (var n in unread) n.IsRead = true;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteNotificationAsync(int notificationId, int userId)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
+
+            if (notification != null)
+            {
+                notification.IsDeleted = true; // Soft delete
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        // ==========================================
+        // Refactored Specialized Methods
+        // ==========================================
+
         public async Task SendEnrollmentConfirmationAsync(int studentId, int sectionId)
         {
-            try
-            {
-                var student = await _context.Users.FindAsync(studentId);
-                var section = await _context.CourseSections
-                    .Include(s => s.Course)
-                    .Include(s => s.Instructor)
-                    .FirstOrDefaultAsync(s => s.Id == sectionId);
+            var section = await _context.CourseSections
+                .Include(s => s.Course)
+                .Include(s => s.Instructor)
+                .FirstOrDefaultAsync(s => s.Id == sectionId);
 
-                if (student == null || section == null || string.IsNullOrEmpty(student.Email)) return;
+            if (section == null) return;
 
-                var subject = $"✅ Ders Kaydı Onaylandı - {section.Course?.Code}";
-                var body = $@"
-Sayın {student.FirstName} {student.LastName},
+            var student = await _context.Students.FindAsync(studentId);
+            if (student == null) return;
+            
+            var title = $"✅ Ders Kaydı Onaylandı - {section.Course?.Code}";
+            var message = $"Sayın Öğrenci, {section.Course?.Code} - {section.Course?.Name} dersine kaydınız onaylanmıştır.";
 
-Aşağıdaki derse kaydınız başarıyla gerçekleştirilmiştir:
-
-📚 Ders: {section.Course?.Code} - {section.Course?.Name}
-👤 Öğretim Üyesi: {section.Instructor?.FirstName} {section.Instructor?.LastName}
-📅 Dönem: {section.Semester} {section.Year}
-🔢 Section: {section.SectionNumber}
-
-Derslerinizde başarılar dileriz.
-
-Saygılarımızla,
-Smart Campus Akademik Sistem
-";
-
-                await _emailService.SendEmailAsync(student.Email!, subject, body);
-                _logger.LogInformation($"📧 Kayıt bildirimi gönderildi: {student.Email} - {section.Course?.Code}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Kayıt bildirimi gönderilemedi: {ex.Message}");
-            }
+            await SendNotificationAsync(student.UserId, title, message, "Academic", "Enrollment", sectionId.ToString());
         }
 
-        /// <summary>
-        /// Not girişi bildirimi
-        /// </summary>
         public async Task SendGradeNotificationAsync(int studentId, int enrollmentId)
         {
-            try
-            {
-                var student = await _context.Users.FindAsync(studentId);
-                var enrollment = await _context.Enrollments
-                    .Include(e => e.Section)
-                        .ThenInclude(s => s.Course)
-                    .FirstOrDefaultAsync(e => e.Id == enrollmentId);
+            var enrollment = await _context.Enrollments
+                .Include(e => e.Section)
+                    .ThenInclude(s => s.Course)
+                .FirstOrDefaultAsync(e => e.Id == enrollmentId);
 
-                if (student == null || enrollment == null || string.IsNullOrEmpty(student.Email) || enrollment.Section == null) return;
+            if (enrollment?.Section == null) return;
 
-                var courseName = enrollment.Section.Course?.Name ?? "Bilinmiyor";
-                var courseCode = enrollment.Section.Course?.Code ?? "";
+            var student = await _context.Students.FindAsync(studentId);
+            if (student == null) return;
 
-                var subject = $"📊 Not Girişi Yapıldı - {courseCode}";
-                var body = $@"
-Sayın {student.FirstName} {student.LastName},
+            var title = $"📊 Not Girişi - {enrollment.Section.Course?.Code}";
+            var message = $"{enrollment.Section.Course?.Name} dersi notlarınız güncellendi.";
 
-{courseCode} - {courseName} dersi için not girişi yapılmıştır.
-
-📝 Vize: {(enrollment.MidtermGrade?.ToString("F1") ?? "-")}
-📝 Final: {(enrollment.FinalGrade?.ToString("F1") ?? "-")}
-📝 Ödev: {(enrollment.HomeworkGrade?.ToString("F1") ?? "-")}
-🎯 Harf Notu: {enrollment.LetterGrade ?? "-"}
-
-Not detaylarını Smart Campus sisteminden görüntüleyebilirsiniz.
-
-Saygılarımızla,
-Smart Campus Akademik Sistem
-";
-
-                await _emailService.SendEmailAsync(student.Email!, subject, body);
-                _logger.LogInformation($"📧 Not bildirimi gönderildi: {student.Email} - {courseCode}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Not bildirimi gönderilemedi: {ex.Message}");
-            }
+            await SendNotificationAsync(student.UserId, title, message, "Academic", "Grade", enrollmentId.ToString());
         }
 
-        /// <summary>
-        /// Yoklama oturumu başladı bildirimi
-        /// </summary>
         public async Task SendSessionStartNotificationAsync(int sectionId, int sessionId)
         {
-            try
+            var session = await _context.AttendanceSessions
+                .Include(s => s.Section)
+                    .ThenInclude(sec => sec.Course)
+                .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+            if (session?.Section == null) return;
+
+            var enrolledStudentIds = await _context.Enrollments
+                .Where(e => e.SectionId == sectionId && e.Status == "enrolled")
+                .Select(e => e.StudentId)
+                .ToListAsync();
+
+            var userIds = await _context.Students
+                .Where(s => enrolledStudentIds.Contains(s.Id))
+                .Select(s => s.UserId)
+                .ToListAsync();
+
+            var title = $"🔔 Yoklama - {session.Section.Course?.Code}";
+            var message = $"{session.Section.Course?.Name} dersi için yoklama başlamıştır.";
+
+            foreach (var userId in userIds)
             {
-                var session = await _context.AttendanceSessions
-                    .Include(s => s.Section)
-                        .ThenInclude(sec => sec.Course)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId);
-
-                if (session == null || session.Section == null) return;
-
-                // Bu derse kayıtlı öğrencileri al
-                var enrolledStudentIds = await _context.Enrollments
-                    .Where(e => e.SectionId == sectionId && e.Status == "enrolled")
-                    .Select(e => e.StudentId)
-                    .ToListAsync();
-
-                // StudentId'lerden UserId'leri bul
-                var studentUserIds = await _context.Students
-                    .Where(s => enrolledStudentIds.Contains(s.Id))
-                    .Select(s => s.UserId)
-                    .ToListAsync();
-
-                var students = await _context.Users
-                    .Where(u => studentUserIds.Contains(u.Id))
-                    .ToListAsync();
-
-                var courseName = session.Section?.Course?.Name ?? "Bilinmiyor";
-                var courseCode = session.Section?.Course?.Code ?? "";
-
-                foreach (var student in students)
-                {
-                    if (string.IsNullOrEmpty(student.Email)) continue;
-
-                    var subject = $"🔔 Yoklama Açıldı - {courseCode}";
-                    var body = $@"
-Sayın {student.FirstName} {student.LastName},
-
-{courseCode} - {courseName} dersi için yoklama açılmıştır.
-
-📅 Tarih: {session.Date:dd.MM.yyyy}
-⏰ Süre: {session.StartTime:HH:mm} - {session.EndTime:HH:mm}
-
-Lütfen yoklamanızı vermeyi unutmayın!
-
-Saygılarımızla,
-Smart Campus Akademik Sistem
-";
-
-                    try
-                    {
-                        await _emailService.SendEmailAsync(student.Email!, subject, body);
-                    }
-                    catch
-                    {
-                        // Individual email failure shouldn't stop others
-                    }
-                }
-
-                _logger.LogInformation($"📧 Yoklama bildirimi gönderildi: {students.Count} öğrenci - {courseCode}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Yoklama bildirimi gönderilemedi: {ex.Message}");
+                // Parallel execution or simpler loop
+                await SendNotificationAsync(userId, title, message, "Attendance", "Session", sessionId.ToString());
             }
         }
 
-        /// <summary>
-        /// Mazeret onaylandı bildirimi
-        /// </summary>
         public async Task SendExcuseApprovedAsync(int studentId, int sessionId)
         {
-            try
-            {
-                var student = await _context.Users.FindAsync(studentId);
-                var session = await _context.AttendanceSessions
-                    .Include(s => s.Section)
-                        .ThenInclude(sec => sec.Course)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId);
+             var student = await _context.Students.FindAsync(studentId);
+             if (student == null) return;
 
-                if (student == null || session == null || string.IsNullOrEmpty(student.Email) || session.Section == null) return;
-
-                var courseName = session.Section.Course?.Name ?? "Bilinmiyor";
-
-                var subject = "✅ Mazeret Talebiniz Onaylandı";
-                var body = $@"
-Sayın {student.FirstName} {student.LastName},
-
-{session.Date:dd.MM.yyyy} tarihli {courseName} dersi için vermiş olduğunuz mazeret talebiniz onaylanmıştır.
-
-Bu devamsızlık mazeretli olarak kaydedilmiştir.
-
-Saygılarımızla,
-Smart Campus Akademik Sistem
-";
-
-                await _emailService.SendEmailAsync(student.Email!, subject, body);
-                _logger.LogInformation($"📧 Mazeret onay bildirimi gönderildi: {student.Email}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Mazeret onay bildirimi gönderilemedi: {ex.Message}");
-            }
+             var session = await _context.AttendanceSessions.FindAsync(sessionId);
+             
+             await SendNotificationAsync(student.UserId, "✅ Mazeret Onaylandı", 
+                 $"{session?.Date:dd.MM.yyyy} tarihli ders için mazeretiniz onaylandı.", 
+                 "Attendance", "Excuse", sessionId.ToString());
         }
 
-        /// <summary>
-        /// Mazeret reddedildi bildirimi
-        /// </summary>
         public async Task SendExcuseRejectedAsync(int studentId, int sessionId, string? notes)
         {
-            try
-            {
-                var student = await _context.Users.FindAsync(studentId);
-                var session = await _context.AttendanceSessions
-                    .Include(s => s.Section)
-                        .ThenInclude(sec => sec.Course)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId);
+            var student = await _context.Students.FindAsync(studentId);
+            if (student == null) return;
 
-                if (student == null || session == null || string.IsNullOrEmpty(student.Email) || session.Section == null) return;
+            var session = await _context.AttendanceSessions.FindAsync(sessionId);
 
-                var courseName = session.Section.Course?.Name ?? "Bilinmiyor";
-
-                var subject = "❌ Mazeret Talebiniz Reddedildi";
-                var body = $@"
-Sayın {student.FirstName} {student.LastName},
-
-{session.Date:dd.MM.yyyy} tarihli {courseName} dersi için vermiş olduğunuz mazeret talebiniz reddedilmiştir.
-
-{(string.IsNullOrEmpty(notes) ? "" : $"Açıklama: {notes}")}
-
-Sorularınız için ilgili öğretim üyesi ile iletişime geçebilirsiniz.
-
-Saygılarımızla,
-Smart Campus Akademik Sistem
-";
-
-                await _emailService.SendEmailAsync(student.Email!, subject, body);
-                _logger.LogInformation($"📧 Mazeret red bildirimi gönderildi: {student.Email}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Mazeret red bildirimi gönderilemedi: {ex.Message}");
-            }
+            await SendNotificationAsync(student.UserId, "❌ Mazeret Reddedildi", 
+                $"{session?.Date:dd.MM.yyyy} tarihli ders için mazeretiniz reddedildi. {notes}", 
+                "Attendance", "Excuse", sessionId.ToString());
         }
     }
 }

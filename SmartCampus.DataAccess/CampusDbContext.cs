@@ -54,6 +54,14 @@ namespace SmartCampus.DataAccess
         public DbSet<Schedule> Schedules { get; set; } = null!;
         public DbSet<ClassroomReservation> ClassroomReservations { get; set; } = null!;
 
+        // Part 4 - Notification System
+        public DbSet<Notification> Notifications { get; set; } = null!;
+        public DbSet<NotificationPreference> NotificationPreferences { get; set; } = null!;
+
+        // Part 4 - IoT Sensor Integration
+        public DbSet<IoTSensor> IoTSensors { get; set; } = null!;
+        public DbSet<SensorData> SensorData { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Critical for Identity
@@ -397,6 +405,29 @@ namespace SmartCampus.DataAccess
                 .WithMany()
                 .HasForeignKey(cr => cr.ApprovedBy)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ==================== PART 4 RELATIONSHIPS ====================
+
+            // Notification - User (N:1)
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // NotificationPreference - User (1:1)
+            modelBuilder.Entity<NotificationPreference>()
+                .HasOne(np => np.User)
+                .WithOne()
+                .HasForeignKey<NotificationPreference>(np => np.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // IoTSensor - SensorData (1:N)
+            modelBuilder.Entity<SensorData>()
+                .HasOne(sd => sd.Sensor)
+                .WithMany()
+                .HasForeignKey(sd => sd.SensorId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ==================== SEED DATA ====================
             var seedDate = new System.DateTime(2024, 1, 1);
