@@ -126,10 +126,39 @@ Base URL: `/api/v1`
 
 ## 🧪 Testing
 
+### Quick Test Run
 ```bash
 cd SmartCampus.Tests
 dotnet test
 ```
+
+### Test Coverage Report
+
+To generate a comprehensive code coverage report:
+
+```powershell
+.\run-tests-backend.ps1
+```
+
+This script will:
+1. Build the solution
+2. Run all tests with code coverage
+3. Generate an HTML coverage report
+
+**Report Location**: `TestResults/CoverageReport/index.html`
+
+**Prerequisites**:
+- .NET 8 SDK
+- ReportGenerator tool (installed automatically if missing):
+  ```bash
+  dotnet tool install -g dotnet-reportgenerator-globaltool
+  ```
+
+**Coverage Exclusions**:
+- Migration files (`**/Migrations/**/*.cs`)
+- DbContext (`CampusDbContext.cs`)
+- Program entry point (`Program.cs`)
+- Migration Helper (`DbMigrationHelper.cs`)
 
 Test coverage includes:
 - Notification Service & Controller
