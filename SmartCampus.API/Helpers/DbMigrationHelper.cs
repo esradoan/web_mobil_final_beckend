@@ -3,40 +3,92 @@ using SmartCampus.DataAccess;
 
 namespace SmartCampus.API.Helpers
 {
+    /// <summary>
+    /// Helper for applying Part 4 migration to existing databases.
+    /// This is a workaround for databases that existed before Part 4 migration was created.
+    /// For fresh databases, EF Core's standard Migrate() will handle everything.
+    /// </summary>
     public static class DbMigrationHelper
     {
+        private const string Part4MigrationId = "20251226152803_ImplementedPart4Entities";
+
         public static void ApplyPart4Migration(CampusDbContext context)
         {
-            try
+            // Check if this is a fresh database (no Identity tables)
+            if (!IsExistingDatabase(context))
             {
-                // Check if migration already applied
-                var historyExists = context.Database.ExecuteSqlRaw("SELECT 1 FROM `__EFMigrationsHistory` WHERE `MigrationId` = '20251226152803_ImplementedPart4Entities'");
-            }
-            catch
-            {
-                // Ignore check errors
-            }
-
-            // SAFETY CHECK: If Identity tables don't exist, this is a FRESH database.
-            // We should let EF Core's standard Migrate() handle everything in that case.
-            // We only need this manual helper if we are "patching" an existing DB.
-            try
-            {
-                // Check if AspNetUsers exists (MySQL syntax)
-                var tableExists = context.Database.ExecuteSqlRaw("SELECT 1 FROM `AspNetUsers` LIMIT 1");
-                // If this throws or returns 0 (though ExecuteSqlRaw returns affected rows not result), 
-                // actually ExecuteSqlRaw is for commands. Querying is harder. 
-                // Let's use a dummy query wrapped in try/catch.
-                
-                 context.Database.ExecuteSqlRaw("SELECT Id FROM `AspNetUsers` LIMIT 1");
-            }
-            catch
-            {
-                Console.WriteLine("⚠️ AspNetUsers table not found. Skipping manual Part 4 migration (Assuming Fresh DB).");
+                Console.WriteLine("⚠️ Fresh database detected. Skipping manual Part 4 migration (EF Core will handle it).");
                 return;
             }
 
-            var sql = @"
+            // Check if Part 4 migration already applied
+            if (IsMigrationApplied(context, Part4MigrationId))
+            {
+                Console.WriteLine("✅ Part 4 migration already applied. Skipping.");
+                return;
+            }
+
+            try
+            {
+                var sql = GetPart4MigrationSql();
+                context.Database.ExecuteSqlRaw(sql);
+                
+                // Sync migration history
+                SyncMigrationHistory(context);
+                
+                Console.WriteLine("✅ Part 4 Migration applied and History synced manually.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Migration application warning/error: {ex.Message}");
+            }
+        }
+
+        private static bool IsExistingDatabase(CampusDbContext context)
+        {
+            try
+            {
+                context.Database.ExecuteSqlRaw("SELECT Id FROM `AspNetUsers` LIMIT 1");
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsMigrationApplied(CampusDbContext context, string migrationId)
+        {
+            try
+            {
+                // Use EF Core's GetAppliedMigrations to check if migration is already applied
+                var appliedMigrations = context.Database.GetAppliedMigrations().ToList();
+                return appliedMigrations.Contains(migrationId);
+            }
+            catch
+            {
+                // If we can't check, assume not applied (safer to apply than skip)
+                return false;
+            }
+        }
+
+        private static void SyncMigrationHistory(CampusDbContext context)
+        {
+            // Get all migrations from the Migrations folder dynamically
+            var allMigrations = context.Database.GetMigrations().ToList();
+            const string productVersion = "8.0.2";
+
+            foreach (var migration in allMigrations)
+            {
+                // Use string interpolation with proper escaping
+                var sql = $"INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ('{migration}', '{productVersion}')";
+                context.Database.ExecuteSqlRaw(sql);
+            }
+        }
+
+        private static string GetPart4MigrationSql()
+        {
+            return @"
 CREATE TABLE IF NOT EXISTS `IoTSensors` (
     `Id` int NOT NULL AUTO_INCREMENT,
     `Name` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
@@ -97,85 +149,42 @@ CREATE TABLE IF NOT EXISTS `SensorData` (
     CONSTRAINT `FK_SensorData_IoTSensors_SensorId` FOREIGN KEY (`SensorId`) REFERENCES `IoTSensors` (`Id`) ON DELETE CASCADE
 ) CHARACTER SET=utf8mb4;
 
--- Index creation: Check if exists before creating to avoid duplicate key errors
--- MySQL doesn't support IF NOT EXISTS for indexes, so we use a workaround
-
-SET @index_exists = (
-    SELECT COUNT(*) FROM information_schema.statistics 
-    WHERE table_schema = DATABASE() 
-    AND table_name = 'NotificationPreferences' 
-    AND index_name = 'IX_NotificationPreferences_UserId'
-);
-SET @sql = IF(@index_exists = 0, 
-    'CREATE UNIQUE INDEX `IX_NotificationPreferences_UserId` ON `NotificationPreferences` (`UserId`)',
-    'SELECT 1');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @index_exists = (
-    SELECT COUNT(*) FROM information_schema.statistics 
-    WHERE table_schema = DATABASE() 
-    AND table_name = 'Notifications' 
-    AND index_name = 'IX_Notifications_UserId'
-);
-SET @sql = IF(@index_exists = 0, 
-    'CREATE INDEX `IX_Notifications_UserId` ON `Notifications` (`UserId`)',
-    'SELECT 1');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @index_exists = (
-    SELECT COUNT(*) FROM information_schema.statistics 
-    WHERE table_schema = DATABASE() 
-    AND table_name = 'SensorData' 
-    AND index_name = 'IX_SensorData_SensorId'
-);
-SET @sql = IF(@index_exists = 0, 
-    'CREATE INDEX `IX_SensorData_SensorId` ON `SensorData` (`SensorId`)',
-    'SELECT 1');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+" + GetCreateIndexSql("NotificationPreferences", "IX_NotificationPreferences_UserId", "UNIQUE") +
+GetCreateIndexSql("Notifications", "IX_Notifications_UserId", "") +
+GetCreateIndexSql("SensorData", "IX_SensorData_SensorId", "") + @"
 
 INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20251226152803_ImplementedPart4Entities', '8.0.2');
 ";
-            
-            try
-            {
-                context.Database.ExecuteSqlRaw(sql);
-                
-                // Backfill previous migrations to prevent EF from trying to run them again
-                var previousMigrations = new[]
-                {
-                    "20251207114925_InitialCreate",
-                    "20251207131914_AddIdentity",
-                    "20251210093453_AddDepartmentSeedData",
-                    "20251214103112_AddPart2Entities",
-                    "20251215001204_AddIsActiveToStudents",
-                    "20251215120000_AddCourseTypeAndDepartmentRequirements",
-                    "20251215215747_ChangeSectionApplicationToCourseApplication",
-                    "20251215222233_AddStudentCourseApplication",
-                    "20251219125158_Part3_MealEventScheduling",
-                    "20251219125510_Part3_SeedData",
-                    "20251219130501_Student_IsScholarship",
-                    "20251222184142_RemoveEventsSeedDataFromMigration",
-                    "20251222190056_AddUserActivityLogsTable"
-                };
+        }
 
-                foreach (var migration in previousMigrations)
-                {
-                    context.Database.ExecuteSqlRaw($"INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ('{migration}', '8.0.2');");
-                }
-                
-                Console.WriteLine("✅ Part 4 Migration applied and History synced manually.");
-            }
-            catch (Exception ex)
+        private static string GetCreateIndexSql(string tableName, string indexName, string indexType)
+        {
+            return $@"
+SET @index_exists = (
+    SELECT COUNT(*) FROM information_schema.statistics 
+    WHERE table_schema = DATABASE() 
+    AND table_name = '{tableName}' 
+    AND index_name = '{indexName}'
+);
+SET @sql = IF(@index_exists = 0, 
+    'CREATE {indexType} INDEX `{indexName}` ON `{tableName}` (`{GetIndexColumnName(tableName, indexName)}`)',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+";
+        }
+
+        private static string GetIndexColumnName(string tableName, string indexName)
+        {
+            return indexName switch
             {
-                Console.WriteLine($"Migration application warning/error: {ex.Message}");
-            }
+                "IX_NotificationPreferences_UserId" => "UserId",
+                "IX_Notifications_UserId" => "UserId",
+                "IX_SensorData_SensorId" => "SensorId",
+                _ => "Id"
+            };
         }
     }
 }
