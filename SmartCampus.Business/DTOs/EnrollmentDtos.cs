@@ -31,6 +31,12 @@ namespace SmartCampus.Business.DTOs
         public string Status { get; set; } = string.Empty;
         public DateTime EnrollmentDate { get; set; }
         public decimal? AttendancePercentage { get; set; }
+        // Grade information for completed courses
+        public string? LetterGrade { get; set; }
+        public decimal? GradePoint { get; set; }
+        public decimal? MidtermGrade { get; set; }
+        public decimal? FinalGrade { get; set; }
+        public decimal? HomeworkGrade { get; set; }
     }
 
     public class StudentEnrollmentDto

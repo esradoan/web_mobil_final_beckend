@@ -97,13 +97,47 @@ CREATE TABLE IF NOT EXISTS `SensorData` (
     CONSTRAINT `FK_SensorData_IoTSensors_SensorId` FOREIGN KEY (`SensorId`) REFERENCES `IoTSensors` (`Id`) ON DELETE CASCADE
 ) CHARACTER SET=utf8mb4;
 
--- Index checks are harder in raw SQL without errors, so we wrap in blocks or just try to create.
--- Using 'IF NOT EXISTS' for tables helps.
--- Indexes might fail if they exist.
+-- Index creation: Check if exists before creating to avoid duplicate key errors
+-- MySQL doesn't support IF NOT EXISTS for indexes, so we use a workaround
 
-CREATE UNIQUE INDEX `IX_NotificationPreferences_UserId` ON `NotificationPreferences` (`UserId`);
-CREATE INDEX `IX_Notifications_UserId` ON `Notifications` (`UserId`);
-CREATE INDEX `IX_SensorData_SensorId` ON `SensorData` (`SensorId`);
+SET @index_exists = (
+    SELECT COUNT(*) FROM information_schema.statistics 
+    WHERE table_schema = DATABASE() 
+    AND table_name = 'NotificationPreferences' 
+    AND index_name = 'IX_NotificationPreferences_UserId'
+);
+SET @sql = IF(@index_exists = 0, 
+    'CREATE UNIQUE INDEX `IX_NotificationPreferences_UserId` ON `NotificationPreferences` (`UserId`)',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists = (
+    SELECT COUNT(*) FROM information_schema.statistics 
+    WHERE table_schema = DATABASE() 
+    AND table_name = 'Notifications' 
+    AND index_name = 'IX_Notifications_UserId'
+);
+SET @sql = IF(@index_exists = 0, 
+    'CREATE INDEX `IX_Notifications_UserId` ON `Notifications` (`UserId`)',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists = (
+    SELECT COUNT(*) FROM information_schema.statistics 
+    WHERE table_schema = DATABASE() 
+    AND table_name = 'SensorData' 
+    AND index_name = 'IX_SensorData_SensorId'
+);
+SET @sql = IF(@index_exists = 0, 
+    'CREATE INDEX `IX_SensorData_SensorId` ON `SensorData` (`SensorId`)',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20251226152803_ImplementedPart4Entities', '8.0.2');

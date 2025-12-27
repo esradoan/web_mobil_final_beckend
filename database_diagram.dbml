@@ -1,0 +1,552 @@
+// Smart Campus Database Schema
+// dbdiagram.io format (DBML)
+// Copy this content to https://dbdiagram.io/d to visualize
+
+Project SmartCampus {
+  database_type: 'MySQL'
+  Note: 'Smart Campus University Management System Database Schema'
+}
+
+// ==================== PART 1: USER MANAGEMENT ====================
+
+Table AspNetUsers {
+  Id int [pk, increment]
+  UserName varchar(256)
+  NormalizedUserName varchar(256)
+  Email varchar(256)
+  NormalizedEmail varchar(256)
+  EmailConfirmed bool
+  PasswordHash longtext
+  SecurityStamp longtext
+  ConcurrencyStamp longtext
+  PhoneNumber longtext
+  PhoneNumberConfirmed bool
+  TwoFactorEnabled bool
+  LockoutEnd datetime(6)
+  LockoutEnabled bool
+  AccessFailedCount int
+  FirstName longtext [not null]
+  LastName longtext [not null]
+  IsDeleted bool [default: false]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  EmailVerificationToken longtext
+  RefreshToken longtext
+  RefreshTokenExpiryTime datetime(6)
+  ProfilePictureUrl longtext
+  Note: 'ASP.NET Identity User table'
+}
+
+Table AspNetRoles {
+  Id int [pk, increment]
+  Name varchar(256)
+  NormalizedName varchar(256)
+  ConcurrencyStamp longtext
+  Note: 'ASP.NET Identity Roles'
+}
+
+Table AspNetUserRoles {
+  UserId int [pk, ref: > AspNetUsers.Id]
+  RoleId int [pk, ref: > AspNetRoles.Id]
+  Note: 'User-Role many-to-many'
+}
+
+Table AspNetUserClaims {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id]
+  ClaimType longtext
+  ClaimValue longtext
+}
+
+Table AspNetUserLogins {
+  LoginProvider varchar(255) [pk]
+  ProviderKey varchar(255) [pk]
+  ProviderDisplayName longtext
+  UserId int [ref: > AspNetUsers.Id]
+}
+
+Table AspNetUserTokens {
+  UserId int [pk, ref: > AspNetUsers.Id]
+  LoginProvider varchar(255) [pk]
+  Name varchar(255) [pk]
+  Value longtext
+}
+
+Table AspNetRoleClaims {
+  Id int [pk, increment]
+  RoleId int [ref: > AspNetRoles.Id]
+  ClaimType longtext
+  ClaimValue longtext
+}
+
+Table Students {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id, unique]
+  StudentNumber longtext [not null]
+  DepartmentId int [ref: > Departments.Id]
+  GPA decimal(65,30) [default: 0]
+  CGPA decimal(65,30) [default: 0]
+  IsActive bool [default: true]
+  IsScholarship bool [default: false]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Student profile - 1:1 with User'
+}
+
+Table Faculties {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id, unique]
+  EmployeeNumber longtext [not null]
+  Title longtext [not null]
+  DepartmentId int [ref: > Departments.Id]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Faculty/Instructor profile - 1:1 with User'
+}
+
+Table Departments {
+  Id int [pk, increment]
+  Name longtext [not null]
+  Code longtext [not null]
+  FacultyName longtext [not null]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Academic departments (CENG, EE, etc.)'
+}
+
+Table RefreshTokens {
+  Id int [pk, increment]
+  Token longtext [not null]
+  ExpiryDate datetime(6) [not null]
+  IsRevoked bool [default: false]
+  UserId int [ref: > AspNetUsers.Id]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+}
+
+Table PasswordResetTokens {
+  Id int [pk, increment]
+  Token longtext [not null]
+  ExpiryDate datetime(6) [not null]
+  IsUsed bool [default: false]
+  UserId int [ref: > AspNetUsers.Id]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+}
+
+Table UserActivityLogs {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id]
+  Action longtext [not null]
+  Description longtext
+  IpAddress longtext
+  Timestamp datetime(6) [not null]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+}
+
+// ==================== PART 2: ACADEMIC MANAGEMENT ====================
+
+Table Classrooms {
+  Id int [pk, increment]
+  Building varchar(255) [not null]
+  RoomNumber varchar(255) [not null]
+  Capacity int [not null]
+  Latitude decimal(65,30) [not null]
+  Longitude decimal(65,30) [not null]
+  FeaturesJson longtext
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Unique constraint on (Building, RoomNumber)'
+}
+
+Table Courses {
+  Id int [pk, increment]
+  Code varchar(255) [not null, unique]
+  Name longtext [not null]
+  Description longtext
+  Credits int [not null]
+  Ects int [not null]
+  SyllabusUrl longtext
+  DepartmentId int [ref: > Departments.Id]
+  Type int [not null, default: 0]
+  AllowCrossDepartment bool [default: false]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'CourseType: Required=0, Elective=1, GeneralElective=2'
+}
+
+Table CoursePrerequisites {
+  CourseId int [pk, ref: > Courses.Id]
+  PrerequisiteCourseId int [pk, ref: > Courses.Id]
+  Note: 'Self-referencing many-to-many (Course prerequisites)'
+}
+
+Table CourseSections {
+  Id int [pk, increment]
+  CourseId int [ref: > Courses.Id]
+  SectionNumber varchar(255) [not null]
+  Semester varchar(255) [not null]
+  Year int [not null]
+  InstructorId int [ref: > AspNetUsers.Id]
+  Capacity int [not null, default: 50]
+  EnrolledCount int [not null, default: 0]
+  ScheduleJson longtext
+  ClassroomId int [ref: - Classrooms.Id]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Unique constraint on (CourseId, SectionNumber, Semester, Year)'
+}
+
+Table Enrollments {
+  Id int [pk, increment]
+  StudentId int [ref: > Students.Id]
+  SectionId int [ref: > CourseSections.Id]
+  Status longtext [not null, default: 'enrolled']
+  EnrollmentDate datetime(6) [not null]
+  MidtermGrade decimal(65,30)
+  FinalGrade decimal(65,30)
+  HomeworkGrade decimal(65,30)
+  LetterGrade longtext
+  GradePoint decimal(65,30)
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Status: enrolled, completed, dropped. Unique constraint on (StudentId, SectionId)'
+}
+
+Table DepartmentCourseRequirements {
+  Id int [pk, increment]
+  DepartmentId int [ref: > Departments.Id]
+  CourseId int [ref: > Courses.Id]
+  IsRequired bool [not null, default: true]
+  MinimumGrade int
+  RecommendedYear int
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Unique constraint on (DepartmentId, CourseId)'
+}
+
+// ==================== PART 2: ATTENDANCE SYSTEM ====================
+
+Table AttendanceSessions {
+  Id int [pk, increment]
+  SectionId int [ref: > CourseSections.Id]
+  InstructorId int [ref: > AspNetUsers.Id]
+  Date datetime(6) [not null]
+  StartTime time(6) [not null]
+  EndTime time(6) [not null]
+  Latitude decimal(65,30) [not null]
+  Longitude decimal(65,30) [not null]
+  GeofenceRadius decimal(65,30) [not null, default: 15.0]
+  QrCode varchar(255) [not null, unique]
+  QrCodeExpiry datetime(6) [not null]
+  Status longtext [not null, default: 'active']
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Status: active, terminated'
+}
+
+Table AttendanceRecords {
+  Id int [pk, increment]
+  SessionId int [ref: > AttendanceSessions.Id]
+  StudentId int [ref: > AspNetUsers.Id]
+  CheckInTime datetime(6) [not null]
+  Latitude decimal(65,30) [not null]
+  Longitude decimal(65,30) [not null]
+  DistanceFromCenter decimal(65,30) [not null]
+  IsFlagged bool [default: false]
+  FlagReason longtext
+  CreatedAt datetime(6) [not null]
+  Note: 'StudentId references User.Id (not Student.Id). Unique constraint on (SessionId, StudentId)'
+}
+
+Table ExcuseRequests {
+  Id int [pk, increment]
+  StudentId int [ref: > AspNetUsers.Id]
+  SessionId int [ref: > AttendanceSessions.Id]
+  Reason longtext [not null]
+  DocumentUrl longtext
+  Status longtext [not null, default: 'pending']
+  ReviewedBy int [ref: - AspNetUsers.Id]
+  ReviewedAt datetime(6)
+  Notes longtext
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Status: pending, approved, rejected'
+}
+
+// ==================== PART 2: COURSE APPLICATIONS ====================
+
+Table CourseApplications {
+  Id int [pk, increment]
+  CourseId int [ref: > Courses.Id]
+  InstructorId int [ref: > AspNetUsers.Id]
+  Status int [not null, default: 0]
+  ProcessedAt datetime(6)
+  ProcessedBy int [ref: - AspNetUsers.Id]
+  RejectionReason longtext
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Instructor course applications. Status: Pending=0, Approved=1, Rejected=2. Unique constraint on (CourseId, InstructorId)'
+}
+
+Table StudentCourseApplications {
+  Id int [pk, increment]
+  CourseId int [ref: > Courses.Id]
+  SectionId int [ref: > CourseSections.Id]
+  StudentId int [ref: > AspNetUsers.Id]
+  Status int [not null, default: 0]
+  ProcessedAt datetime(6)
+  ProcessedBy int [ref: - AspNetUsers.Id]
+  RejectionReason longtext
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Student section applications. Unique constraint on (SectionId, StudentId)'
+}
+
+// ==================== PART 3: MEAL SERVICE ====================
+
+Table Cafeterias {
+  Id int [pk, increment]
+  Name longtext [not null]
+  Location longtext [not null]
+  Capacity int [not null]
+  IsActive bool [not null, default: true]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+}
+
+Table MealMenus {
+  Id int [pk, increment]
+  CafeteriaId int [ref: > Cafeterias.Id]
+  Date datetime(6) [not null]
+  MealType longtext [not null, default: 'lunch']
+  ItemsJson longtext [not null, default: '[]']
+  NutritionJson longtext [not null, default: '{}']
+  IsPublished bool [default: false]
+  HasVegetarianOption bool [default: false]
+  Price decimal(65,30) [default: 0]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'MealType: lunch, dinner'
+}
+
+Table MealReservations {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id]
+  MenuId int [ref: > MealMenus.Id]
+  CafeteriaId int [ref: > Cafeterias.Id]
+  MealType longtext [not null]
+  Date datetime(6) [not null]
+  Amount decimal(65,30) [default: 0]
+  QrCode varchar(255) [not null, unique]
+  Status longtext [not null, default: 'reserved']
+  UsedAt datetime(6)
+  IsScholarship bool [default: false]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Status: reserved, used, cancelled'
+}
+
+// ==================== PART 3: WALLET/PAYMENT ====================
+
+Table Wallets {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id, unique]
+  Balance decimal(65,30) [not null, default: 0]
+  Currency longtext [not null, default: 'TRY']
+  IsActive bool [not null, default: true]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: '1:1 with User'
+}
+
+Table Transactions {
+  Id int [pk, increment]
+  WalletId int [ref: > Wallets.Id]
+  Type longtext [not null, default: 'credit']
+  Amount decimal(65,30) [not null]
+  BalanceAfter decimal(65,30) [not null]
+  ReferenceType longtext [not null]
+  ReferenceId int
+  Description longtext [not null]
+  PaymentReference longtext
+  Status longtext [not null, default: 'completed']
+  CreatedAt datetime(6) [not null]
+  Note: 'Type: credit, debit. Status: pending, completed, failed, refunded'
+}
+
+// ==================== PART 3: EVENT MANAGEMENT ====================
+
+Table Events {
+  Id int [pk, increment]
+  Title longtext [not null]
+  Description longtext [not null]
+  Category longtext [not null, default: 'social']
+  Date datetime(6) [not null]
+  StartTime time(6) [not null]
+  EndTime time(6) [not null]
+  Location longtext [not null]
+  Capacity int [not null]
+  RegisteredCount int [not null, default: 0]
+  RegistrationDeadline datetime(6) [not null]
+  IsPaid bool [default: false]
+  Price decimal(65,30) [default: 0]
+  Status longtext [not null, default: 'draft']
+  ImageUrl longtext
+  OrganizerId int [ref: > AspNetUsers.Id]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Status: draft, published, cancelled, completed'
+}
+
+Table EventRegistrations {
+  Id int [pk, increment]
+  EventId int [ref: > Events.Id]
+  UserId int [ref: > AspNetUsers.Id]
+  RegistrationDate datetime(6) [not null]
+  QrCode varchar(255) [not null, unique]
+  CheckedIn bool [default: false]
+  CheckedInAt datetime(6)
+  CustomFieldsJson longtext
+  Status longtext [not null, default: 'registered']
+  IsPaid bool [default: false]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Unique constraint on (EventId, UserId)'
+}
+
+// ==================== PART 3: SCHEDULING & RESERVATIONS ====================
+
+Table Schedules {
+  Id int [pk, increment]
+  SectionId int [ref: > CourseSections.Id]
+  DayOfWeek int [not null]
+  StartTime time(6) [not null]
+  EndTime time(6) [not null]
+  ClassroomId int [ref: > Classrooms.Id]
+  Semester varchar(255) [not null]
+  Year int [not null]
+  IsActive bool [not null, default: true]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Unique constraint on (ClassroomId, DayOfWeek, StartTime, Semester, Year)'
+}
+
+Table ClassroomReservations {
+  Id int [pk, increment]
+  ClassroomId int [ref: > Classrooms.Id]
+  UserId int [ref: > AspNetUsers.Id]
+  Date datetime(6) [not null]
+  StartTime time(6) [not null]
+  EndTime time(6) [not null]
+  Purpose longtext [not null]
+  Status longtext [not null, default: 'pending']
+  ApprovedBy int [ref: - AspNetUsers.Id]
+  ReviewedAt datetime(6)
+  Notes longtext
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  Note: 'Status: pending, approved, rejected, cancelled'
+}
+
+// ==================== PART 4: NOTIFICATION SYSTEM ====================
+
+Table Notifications {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id]
+  Title varchar(200) [not null]
+  Message longtext [not null]
+  Type varchar(50) [not null, default: 'Info']
+  IsRead bool [default: false]
+  ReferenceType longtext
+  ReferenceId longtext
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Type: Academic, Attendance, System, etc.'
+}
+
+Table NotificationPreferences {
+  Id int [pk, increment]
+  UserId int [ref: > AspNetUsers.Id, unique]
+  EmailEnabled bool [default: true]
+  PushEnabled bool [default: true]
+  SmsEnabled bool [default: false]
+  AcademicNotifications bool [default: true]
+  AttendanceNotifications bool [default: true]
+  MealNotifications bool [default: true]
+  EventNotifications bool [default: true]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: '1:1 with User'
+}
+
+// ==================== PART 4: IoT SENSOR INTEGRATION ====================
+
+Table IoTSensors {
+  Id int [pk, increment]
+  Name varchar(100) [not null]
+  Type varchar(50) [not null, default: 'Generic']
+  Location varchar(100)
+  Status varchar(20) [default: 'Active']
+  LastValue double
+  Unit varchar(20)
+  LastUpdate datetime(6)
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+  Note: 'Type: Temperature, Humidity, Energy, Occupancy. Status: Active, Offline, Maintenance'
+}
+
+Table SensorData {
+  Id int [pk, increment]
+  SensorId int [ref: > IoTSensors.Id]
+  Value double [not null]
+  Unit longtext [not null]
+  Timestamp datetime(6) [not null]
+  CreatedAt datetime(6) [not null]
+  UpdatedAt datetime(6)
+  IsDeleted bool [default: false]
+}
+
+// ==================== RELATIONSHIPS SUMMARY ====================
+// User (1) ---- (1) Student
+// User (1) ---- (1) Faculty
+// User (1) ---- (1) Wallet
+// User (1) ---- (1) NotificationPreference
+// Department (1) ---- (N) Students
+// Department (1) ---- (N) Faculties
+// Department (1) ---- (N) Courses
+// Course (1) ---- (N) CourseSections
+// CourseSection (1) ---- (N) Enrollments
+// Student (1) ---- (N) Enrollments
+// CourseSection (1) ---- (N) AttendanceSessions
+// AttendanceSession (1) ---- (N) AttendanceRecords
+// AttendanceSession (1) ---- (N) ExcuseRequests
+// Cafeteria (1) ---- (N) MealMenus
+// MealMenu (1) ---- (N) MealReservations
+// User (1) ---- (N) MealReservations
+// Wallet (1) ---- (N) Transactions
+// Event (1) ---- (N) EventRegistrations
+// User (1) ---- (N) EventRegistrations
+// CourseSection (1) ---- (N) Schedules
+// Classroom (1) ---- (N) Schedules
+// Classroom (1) ---- (N) ClassroomReservations
+// User (1) ---- (N) Notifications
+// IoTSensor (1) ---- (N) SensorData
+

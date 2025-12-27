@@ -5132,23 +5132,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\taski\\.nuget\\packages\\": {},
+    "C:\\Users\\nezir\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
+      "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
       "projectName": "SmartCampus.API",
-      "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
-      "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\obj\\",
+      "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
+      "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\taski\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -5157,17 +5157,18 @@
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
-              "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj"
+            "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
+              "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj"
             },
-            "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
-              "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
+            "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
+              "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
             }
           }
         }
@@ -5180,9 +5181,9 @@
       "restoreAuditProperties": {
         "enableAudit": "true",
         "auditLevel": "low",
-        "auditMode": "all"
+        "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.100"
+      "SdkAnalysisLevel": "10.0.100"
     },
     "frameworks": {
       "net8.0": {
@@ -5234,50 +5235,8 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'Microsoft.Extensions.Caching.Memory' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qj66-m88j-hmgj",
-      "libraryId": "Microsoft.Extensions.Caching.Memory",
-      "targetGraphs": [
-        "net8.0"
-      ]
-    },
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'Newtonsoft.Json' 11.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr",
-      "libraryId": "Newtonsoft.Json",
-      "targetGraphs": [
-        "net8.0"
-      ]
-    },
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-8g4q-xg66-9fp4",
-      "libraryId": "System.Text.Json",
-      "targetGraphs": [
-        "net8.0"
-      ]
-    },
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-hh2w-p6rv-4g7w",
-      "libraryId": "System.Text.Json",
-      "targetGraphs": [
-        "net8.0"
-      ]
-    }
-  ]
+  }
 }

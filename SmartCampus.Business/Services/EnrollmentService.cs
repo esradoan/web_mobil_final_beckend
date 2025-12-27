@@ -288,27 +288,36 @@ namespace SmartCampus.Business.Services
                 Console.WriteLine($"  - Enrollment: Id={e.Id}, SectionId={e.SectionId}, Status='{e.Status}', StudentId={e.StudentId}");
             }
             
+            // Include both "enrolled" and "completed" courses
             var enrollments = await _context.Enrollments
                 .Include(e => e.Section)
                     .ThenInclude(s => s!.Course)
                 .Include(e => e.Section)
                     .ThenInclude(s => s!.Instructor)
-                .Where(e => e.StudentId == student.Id && e.Status == "enrolled")
+                .Where(e => e.StudentId == student.Id && (e.Status == "enrolled" || e.Status == "completed"))
+                .OrderByDescending(e => e.Status == "enrolled") // Enrolled courses first, then completed
+                .ThenByDescending(e => e.EnrollmentDate)
                 .ToListAsync();
             
-            Console.WriteLine($"✅ GetMyCoursesAsync returning {enrollments.Count} enrollments with status='enrolled'");
+            Console.WriteLine($"✅ GetMyCoursesAsync returning {enrollments.Count} enrollments (enrolled + completed)");
 
             var result = new List<MyCoursesDto>();
             foreach (var e in enrollments)
             {
-                var attendance = await CalculateAttendancePercentageAsync(studentId, e.SectionId);
+                var attendance = e.Status == "completed" ? null : await CalculateAttendancePercentageAsync(studentId, e.SectionId);
                 result.Add(new MyCoursesDto
                 {
                     Id = e.Id,
                     Section = MapToSectionDto(e.Section!),
                     Status = e.Status,
                     EnrollmentDate = e.EnrollmentDate,
-                    AttendancePercentage = attendance
+                    AttendancePercentage = attendance,
+                    // Include grade information for completed courses
+                    LetterGrade = e.LetterGrade,
+                    GradePoint = e.GradePoint,
+                    MidtermGrade = e.MidtermGrade,
+                    FinalGrade = e.FinalGrade,
+                    HomeworkGrade = e.HomeworkGrade
                 });
             }
             return result;
@@ -490,6 +499,8 @@ namespace SmartCampus.Business.Services
 
         public async Task<TranscriptDto> GetTranscriptAsync(int studentId)
         {
+            // Note: studentId parameter is actually UserId, not Student.Id
+            // We find the Student entity by UserId, then use Student.Id for enrollment filtering
             var student = await _context.Students
                 .Include(s => s.User)
                 .Include(s => s.Department)
@@ -498,10 +509,12 @@ namespace SmartCampus.Business.Services
             if (student == null)
                 throw new Exception("Student not found");
 
+            // Enrollment.StudentId stores Student.Id, not UserId
+            // So we must use student.Id, not the studentId parameter (which is UserId)
             var enrollments = await _context.Enrollments
                 .Include(e => e.Section)
                     .ThenInclude(s => s!.Course)
-                .Where(e => e.StudentId == studentId && e.Status == "completed" && e.LetterGrade != null)
+                .Where(e => e.StudentId == student.Id && e.Status == "completed" && e.LetterGrade != null)
                 .OrderBy(e => e.Section!.Year)
                 .ThenBy(e => e.Section!.Semester)
                 .ToListAsync();

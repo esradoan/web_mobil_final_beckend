@@ -173,91 +173,208 @@ namespace SmartCampus.Business.Services
 
         public async Task SendEnrollmentConfirmationAsync(int studentId, int sectionId)
         {
-            var section = await _context.CourseSections
-                .Include(s => s.Course)
-                .Include(s => s.Instructor)
-                .FirstOrDefaultAsync(s => s.Id == sectionId);
+            try
+            {
+                var section = await _context.CourseSections
+                    .Include(s => s.Course)
+                    .Include(s => s.Instructor)
+                    .FirstOrDefaultAsync(s => s.Id == sectionId);
 
-            if (section == null) return;
+                if (section == null)
+                {
+                    _logger.LogWarning($"Section {sectionId} not found for enrollment confirmation");
+                    return;
+                }
 
-            var student = await _context.Students.FindAsync(studentId);
-            if (student == null) return;
-            
-            var title = $"✅ Ders Kaydı Onaylandı - {section.Course?.Code}";
-            var message = $"Sayın Öğrenci, {section.Course?.Code} - {section.Course?.Name} dersine kaydınız onaylanmıştır.";
+                if (section.Course == null)
+                {
+                    _logger.LogWarning($"Section {sectionId} has no Course");
+                    return;
+                }
 
-            await SendNotificationAsync(student.UserId, title, message, "Academic", "Enrollment", sectionId.ToString());
+                var student = await _context.Students.FindAsync(studentId);
+                if (student == null)
+                {
+                    _logger.LogWarning($"Student {studentId} not found for enrollment confirmation");
+                    return;
+                }
+                
+                var courseCode = section.Course.Code ?? "N/A";
+                var courseName = section.Course.Name ?? "Ders";
+                
+                var title = $"✅ Ders Kaydı Onaylandı - {courseCode}";
+                var message = $"Sayın Öğrenci, {courseCode} - {courseName} dersine kaydınız onaylanmıştır.";
+
+                await SendNotificationAsync(student.UserId, title, message, "Academic", "Enrollment", sectionId.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending enrollment confirmation for section {sectionId}, student {studentId}");
+                // Don't throw - notification failure shouldn't break enrollment
+            }
         }
 
         public async Task SendGradeNotificationAsync(int studentId, int enrollmentId)
         {
-            var enrollment = await _context.Enrollments
-                .Include(e => e.Section)
-                    .ThenInclude(s => s.Course)
-                .FirstOrDefaultAsync(e => e.Id == enrollmentId);
+            try
+            {
+                var enrollment = await _context.Enrollments
+                    .Include(e => e.Section)
+                        .ThenInclude(s => s!.Course)
+                    .FirstOrDefaultAsync(e => e.Id == enrollmentId);
 
-            if (enrollment?.Section == null) return;
+                // Comprehensive null checks
+                if (enrollment == null)
+                {
+                    _logger.LogWarning($"Enrollment {enrollmentId} not found for grade notification");
+                    return;
+                }
 
-            var student = await _context.Students.FindAsync(studentId);
-            if (student == null) return;
+                if (enrollment.Section == null)
+                {
+                    _logger.LogWarning($"Enrollment {enrollmentId} has no Section");
+                    return;
+                }
 
-            var title = $"📊 Not Girişi - {enrollment.Section.Course?.Code}";
-            var message = $"{enrollment.Section.Course?.Name} dersi notlarınız güncellendi.";
+                if (enrollment.Section.Course == null)
+                {
+                    _logger.LogWarning($"Enrollment {enrollmentId} Section {enrollment.Section.Id} has no Course");
+                    return;
+                }
 
-            await SendNotificationAsync(student.UserId, title, message, "Academic", "Grade", enrollmentId.ToString());
+                var student = await _context.Students.FindAsync(studentId);
+                if (student == null)
+                {
+                    _logger.LogWarning($"Student {studentId} not found for grade notification");
+                    return;
+                }
+
+                var courseCode = enrollment.Section.Course.Code ?? "N/A";
+                var courseName = enrollment.Section.Course.Name ?? "Ders";
+                
+                var title = $"📊 Not Girişi - {courseCode}";
+                var message = $"{courseName} dersi notlarınız güncellendi.";
+
+                await SendNotificationAsync(student.UserId, title, message, "Academic", "Grade", enrollmentId.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending grade notification for enrollment {enrollmentId}, student {studentId}");
+                // Don't throw - notification failure shouldn't break grade entry
+            }
         }
 
         public async Task SendSessionStartNotificationAsync(int sectionId, int sessionId)
         {
-            var session = await _context.AttendanceSessions
-                .Include(s => s.Section)
-                    .ThenInclude(sec => sec.Course)
-                .FirstOrDefaultAsync(s => s.Id == sessionId);
-
-            if (session?.Section == null) return;
-
-            var enrolledStudentIds = await _context.Enrollments
-                .Where(e => e.SectionId == sectionId && e.Status == "enrolled")
-                .Select(e => e.StudentId)
-                .ToListAsync();
-
-            var userIds = await _context.Students
-                .Where(s => enrolledStudentIds.Contains(s.Id))
-                .Select(s => s.UserId)
-                .ToListAsync();
-
-            var title = $"🔔 Yoklama - {session.Section.Course?.Code}";
-            var message = $"{session.Section.Course?.Name} dersi için yoklama başlamıştır.";
-
-            foreach (var userId in userIds)
+            try
             {
-                // Parallel execution or simpler loop
-                await SendNotificationAsync(userId, title, message, "Attendance", "Session", sessionId.ToString());
+                var session = await _context.AttendanceSessions
+                    .Include(s => s.Section)
+                        .ThenInclude(sec => sec!.Course)
+                    .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+                if (session == null)
+                {
+                    _logger.LogWarning($"AttendanceSession {sessionId} not found");
+                    return;
+                }
+
+                if (session.Section == null)
+                {
+                    _logger.LogWarning($"AttendanceSession {sessionId} has no Section");
+                    return;
+                }
+
+                if (session.Section.Course == null)
+                {
+                    _logger.LogWarning($"AttendanceSession {sessionId} Section {session.Section.Id} has no Course");
+                    return;
+                }
+
+                var enrolledStudentIds = await _context.Enrollments
+                    .Where(e => e.SectionId == sectionId && e.Status == "enrolled")
+                    .Select(e => e.StudentId)
+                    .ToListAsync();
+
+                if (!enrolledStudentIds.Any())
+                {
+                    _logger.LogInformation($"No enrolled students found for section {sectionId}");
+                    return;
+                }
+
+                var userIds = await _context.Students
+                    .Where(s => enrolledStudentIds.Contains(s.Id))
+                    .Select(s => s.UserId)
+                    .ToListAsync();
+
+                var courseCode = session.Section.Course.Code ?? "N/A";
+                var courseName = session.Section.Course.Name ?? "Ders";
+
+                var title = $"🔔 Yoklama - {courseCode}";
+                var message = $"{courseName} dersi için yoklama başlamıştır.";
+
+                foreach (var userId in userIds)
+                {
+                    // Parallel execution or simpler loop
+                    await SendNotificationAsync(userId, title, message, "Attendance", "Session", sessionId.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending session start notification for section {sectionId}, session {sessionId}");
+                // Don't throw - notification failure shouldn't break attendance
             }
         }
 
         public async Task SendExcuseApprovedAsync(int studentId, int sessionId)
         {
-             var student = await _context.Students.FindAsync(studentId);
-             if (student == null) return;
+            try
+            {
+                var student = await _context.Students.FindAsync(studentId);
+                if (student == null)
+                {
+                    _logger.LogWarning($"Student {studentId} not found for excuse approval notification");
+                    return;
+                }
 
-             var session = await _context.AttendanceSessions.FindAsync(sessionId);
-             
-             await SendNotificationAsync(student.UserId, "✅ Mazeret Onaylandı", 
-                 $"{session?.Date:dd.MM.yyyy} tarihli ders için mazeretiniz onaylandı.", 
-                 "Attendance", "Excuse", sessionId.ToString());
+                var session = await _context.AttendanceSessions.FindAsync(sessionId);
+                var sessionDate = session?.Date.ToString("dd.MM.yyyy") ?? "tarih belirtilmemiş";
+                
+                await SendNotificationAsync(student.UserId, "✅ Mazeret Onaylandı", 
+                    $"{sessionDate} tarihli ders için mazeretiniz onaylandı.", 
+                    "Attendance", "Excuse", sessionId.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending excuse approval notification for student {studentId}, session {sessionId}");
+                // Don't throw - notification failure shouldn't break excuse approval
+            }
         }
 
         public async Task SendExcuseRejectedAsync(int studentId, int sessionId, string? notes)
         {
-            var student = await _context.Students.FindAsync(studentId);
-            if (student == null) return;
+            try
+            {
+                var student = await _context.Students.FindAsync(studentId);
+                if (student == null)
+                {
+                    _logger.LogWarning($"Student {studentId} not found for excuse rejection notification");
+                    return;
+                }
 
-            var session = await _context.AttendanceSessions.FindAsync(sessionId);
+                var session = await _context.AttendanceSessions.FindAsync(sessionId);
+                var sessionDate = session?.Date.ToString("dd.MM.yyyy") ?? "tarih belirtilmemiş";
+                var notesText = string.IsNullOrEmpty(notes) ? "" : $" {notes}";
 
-            await SendNotificationAsync(student.UserId, "❌ Mazeret Reddedildi", 
-                $"{session?.Date:dd.MM.yyyy} tarihli ders için mazeretiniz reddedildi. {notes}", 
-                "Attendance", "Excuse", sessionId.ToString());
+                await SendNotificationAsync(student.UserId, "❌ Mazeret Reddedildi", 
+                    $"{sessionDate} tarihli ders için mazeretiniz reddedildi.{notesText}", 
+                    "Attendance", "Excuse", sessionId.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending excuse rejection notification for student {studentId}, session {sessionId}");
+                // Don't throw - notification failure shouldn't break excuse rejection
+            }
         }
     }
 }

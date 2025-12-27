@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj": {}
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj": {}
   },
   "projects": {
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
         "projectName": "SmartCampus.API",
-        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
-        "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\taski\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,17 +26,18 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj"
               },
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
               }
             }
           }
@@ -49,9 +50,9 @@
         "restoreAuditProperties": {
           "enableAudit": "true",
           "auditLevel": "low",
-          "auditMode": "all"
+          "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0": {
@@ -103,24 +104,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
         "projectName": "SmartCampus.Business",
-        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
-        "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\taski\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -129,17 +130,18 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj"
               },
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
               }
             }
           }
@@ -152,9 +154,9 @@
         "restoreAuditProperties": {
           "enableAudit": "true",
           "auditLevel": "low",
-          "auditMode": "all"
+          "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0": {
@@ -225,24 +227,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
         "projectName": "SmartCampus.DataAccess",
-        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
-        "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.DataAccess\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\SmartCampus.DataAccess.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.DataAccess\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\taski\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -251,14 +253,15 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj"
               }
             }
           }
@@ -271,9 +274,9 @@
         "restoreAuditProperties": {
           "enableAudit": "true",
           "auditLevel": "low",
-          "auditMode": "all"
+          "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0": {
@@ -304,24 +307,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
         "projectName": "SmartCampus.Entities",
-        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
-        "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Entities\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\SmartCampus.Entities.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Entities\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\taski\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -330,6 +333,7 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -346,9 +350,9 @@
         "restoreAuditProperties": {
           "enableAudit": "true",
           "auditLevel": "low",
-          "auditMode": "all"
+          "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0": {
@@ -375,24 +379,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj": {
+    "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj",
+        "projectUniqueName": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj",
         "projectName": "SmartCampus.Tests",
-        "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\SmartCampus.Tests.csproj",
-        "packagesPath": "C:\\Users\\taski\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SMARTCAMPUS.Tests\\obj\\",
+        "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Tests\\SmartCampus.Tests.csproj",
+        "packagesPath": "C:\\Users\\nezir\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\taski\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\nezir\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -401,17 +405,18 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.API\\SmartCampus.API.csproj"
               },
-              "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
-                "projectPath": "C:\\Users\\taski\\Documents\\GitHub\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj"
+              "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj": {
+                "projectPath": "C:\\Users\\nezir\\Desktop\\web_mobil_final_beckend\\SmartCampus.Business\\SmartCampus.Business.csproj"
               }
             }
           }
@@ -424,9 +429,9 @@
         "restoreAuditProperties": {
           "enableAudit": "true",
           "auditLevel": "low",
-          "auditMode": "all"
+          "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0": {
@@ -477,7 +482,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
