@@ -312,5 +312,59 @@ namespace SmartCampus.Tests.Controllers
             _mockUserManager.Verify(m => m.AddToRoleAsync(It.IsAny<User>(), "Student"), Times.AtLeastOnce);
             _mockUserManager.Verify(m => m.AddToRoleAsync(It.IsAny<User>(), "Faculty"), Times.AtLeastOnce);
         }
+        [Fact]
+        public async Task UpdateUser_EmailAlreadyExists_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var user = new User { Id = 1, Email = "test@test.com" };
+            var existingUser = new User { Id = 2, Email = "existing@test.com" };
+            
+            _mockUserManager.Setup(x => x.FindByEmailAsync("test@test.com")).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.FindByEmailAsync("existing@test.com")).ReturnsAsync(existingUser);
+
+            var dto = new UpdateUserDto { Email = "existing@test.com" };
+
+            // Act
+            var result = await _controller.UpdateUser("test@test.com", dto);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Contains("kullanılıyor", badRequestResult.Value.ToString());
+        }
+
+        [Fact]
+        public async Task UpdateUser_RoleChangeToStudent_ShouldCreateStudentEntry()
+        {
+            // Arrange
+            var user = new User { Id = 1, Email = "test@test.com" };
+            _mockUserManager.Setup(x => x.FindByEmailAsync("test@test.com")).ReturnsAsync(user);
+            _mockUserManager.Setup(x => x.GetRolesAsync(user)).ReturnsAsync(new List<string> { "Faculty" });
+            _mockUserManager.Setup(x => x.RemoveFromRolesAsync(user, It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
+            _mockUserManager.Setup(x => x.AddToRoleAsync(user, "Student")).ReturnsAsync(IdentityResult.Success);
+            _mockUserManager.Setup(x => x.UpdateAsync(user)).ReturnsAsync(IdentityResult.Success);
+
+            var dto = new UpdateUserDto { Role = UserRole.Student, DepartmentId = 1 };
+
+            // Act
+            var result = await _controller.UpdateUser("test@test.com", dto);
+
+            // Assert
+            Assert.IsType<OkObjectResult>(result);
+            var student = await _context.Students.FirstOrDefaultAsync(s => s.UserId == 1);
+            Assert.NotNull(student);
+        }
+
+        [Fact]
+        public async Task DeleteUserByEmail_UserNotFound_ShouldReturnNotFound()
+        {
+            // Arrange
+            _mockUserManager.Setup(x => x.FindByEmailAsync("nonexist@test.com")).ReturnsAsync((User)null);
+
+            // Act
+            var result = await _controller.DeleteUserByEmail("nonexist@test.com");
+
+            // Assert
+            Assert.IsType<NotFoundObjectResult>(result);
+        }
     }
 }

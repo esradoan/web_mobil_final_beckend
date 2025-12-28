@@ -144,5 +144,152 @@ namespace SmartCampus.Tests.Services
             var dbCourse = await _context.Courses.FindAsync(course.Id);
             Assert.True(dbCourse.IsDeleted);
         }
+
+
+        [Fact]
+        public async Task GetCoursesAsync_ShouldFilterAndSort()
+        {
+            // Arrange
+            _context.Departments.Add(new Department { Id = 1, Name = "CS" });
+            _context.Courses.AddRange(
+                new Course { Id = 3001, Code = "CS101", Name = "Intro", Credits = 3, DepartmentId = 1, IsDeleted = false },
+                new Course { Id = 3002, Code = "CS102", Name = "Advanced", Credits = 4, DepartmentId = 1, IsDeleted = false },
+                new Course { Id = 3003, Code = "MATH101", Name = "Calc", Credits = 3, DepartmentId = 2, IsDeleted = false }
+            );
+            await _context.SaveChangesAsync();
+
+            // Act - Search
+            var searchResult = await _courseService.GetCoursesAsync(1, 10, "Intro", null, null);
+            Assert.Single(searchResult.Data);
+            Assert.Equal("CS101", searchResult.Data[0].Code);
+
+            // Act - Filter Department
+            var deptResult = await _courseService.GetCoursesAsync(1, 10, null, 1, null);
+            Assert.Equal(2, deptResult.Data.Count);
+
+            // Act - Sort Credits Descending
+            var sortResult = await _courseService.GetCoursesAsync(1, 10, null, 1, "credits");
+            Assert.Equal("CS102", sortResult.Data[0].Code); // 4 credits > 3 credits
+        }
+
+        [Fact]
+        public async Task CreateSectionAsync_ShouldCreateSection()
+        {
+            // Arrange
+            var course = new Course { Id = 4001, Code = "CS101", Name = "Intro" };
+            _context.Courses.Add(course);
+            await _context.SaveChangesAsync();
+
+            var dto = new CreateSectionDto
+            {
+                CourseId = 4001,
+                SectionNumber = "01",
+                Semester = "Fall",
+                Year = 2024,
+                Capacity = 30,
+                ScheduleJson = "[{\"Day\":1}]"
+            };
+
+            // Act
+            var result = await _courseService.CreateSectionAsync(dto);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(4001, result.CourseId);
+            Assert.Equal("01", result.SectionNumber);
+            
+            var dbSection = await _context.CourseSections.FindAsync(result.Id);
+            Assert.NotNull(dbSection);
+        }
+
+        [Fact]
+        public async Task UpdateSectionAsync_ShouldUpdate_WhenExists()
+        {
+            // Arrange
+            var course = new Course { Id = 1, Name = "Test", Code = "T" };
+            var classroom = new Classroom { Id = 1, RoomNumber = "101", Building = "A" };
+            var instructor = new User { Id = 1, FirstName = "Inst", LastName = "Test" };
+            _context.Courses.Add(course);
+            _context.Classrooms.Add(classroom);
+            _context.Users.Add(instructor);
+            var section = new CourseSection { Id = 5001, CourseId = 1, SectionNumber = "01", Capacity = 30, ClassroomId = 1, InstructorId = 1, IsDeleted = false };
+            _context.CourseSections.Add(section);
+            await _context.SaveChangesAsync();
+
+            var updateDto = new UpdateSectionDto { Capacity = 50 };
+
+            // Act
+            var result = await _courseService.UpdateSectionAsync(5001, updateDto);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(50, result.Capacity);
+            
+            var dbSection = await _context.CourseSections.FindAsync(5001);
+            Assert.Equal(50, dbSection.Capacity);
+        }
+
+        [Fact]
+        public async Task DeleteSectionAsync_ShouldSoftDelete()
+        {
+            // Arrange
+            var section = new CourseSection { Id = 6001, SectionNumber = "01", IsDeleted = false };
+            _context.CourseSections.Add(section);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _courseService.DeleteSectionAsync(6001);
+
+            // Assert
+            Assert.True(result);
+            var dbSection = await _context.CourseSections.FindAsync(6001);
+            Assert.True(dbSection.IsDeleted);
+        }
+
+        [Fact]
+        public async Task GetSectionsAsync_ShouldFilter()
+        {
+            // Arrange
+            var course = new Course { Id = 1, Name = "Test", Code = "T" };
+            var classroom = new Classroom { Id = 1, RoomNumber = "101", Building = "A" };
+            var instructor = new User { Id = 1, FirstName = "Inst", LastName = "Test" };
+            _context.Courses.Add(course);
+            _context.Classrooms.Add(classroom);
+            _context.Users.Add(instructor);
+            _context.CourseSections.AddRange(
+                new CourseSection { Id = 7001, Semester = "Fall", Year = 2024, CourseId = 1, ClassroomId = 1, InstructorId = 1, IsDeleted = false },
+                new CourseSection { Id = 7002, Semester = "Spring", Year = 2024, CourseId = 1, IsDeleted = false }
+            );
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _courseService.GetSectionsAsync("Fall", 2024, null, null);
+
+            // Assert
+            Assert.Single(result);
+            Assert.Equal(7001, result[0].Id);
+        }
+        
+        [Fact]
+        public async Task GetSectionByIdAsync_ShouldReturnSection()
+        {
+            // Arrange
+            var course = new Course { Id = 1, Name = "Test", Code = "T" };
+            var classroom = new Classroom { Id = 1, RoomNumber = "101", Building = "A" };
+            var instructor = new User { Id = 1, FirstName = "Inst", LastName = "Test" };
+            _context.Courses.Add(course);
+            _context.Classrooms.Add(classroom);
+            _context.Users.Add(instructor);
+            var section = new CourseSection { Id = 8001, SectionNumber = "01", IsDeleted = false, CourseId = 1, ClassroomId = 1, InstructorId = 1 };
+            _context.CourseSections.Add(section);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _courseService.GetSectionByIdAsync(8001);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(8001, result.Id);
+        }
     }
 }

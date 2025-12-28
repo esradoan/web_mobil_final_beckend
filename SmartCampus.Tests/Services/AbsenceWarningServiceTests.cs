@@ -8,6 +8,7 @@ using SmartCampus.DataAccess;
 using SmartCampus.Entities;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -43,31 +44,28 @@ namespace SmartCampus.Tests.Services
             _context?.Dispose();
         }
 
-        private async Task SetupTestDataAsync()
+        private async Task SetupTestDataAsync(bool isCurrentSemester = true)
         {
-            // Add department
             var department = new Department { Id = 1, Name = "Computer Science", Code = "CS" };
             _context.Departments.Add(department);
 
-            // Add course
             var course = new Course { Id = 1, Name = "Programming 101", Code = "CS101", Credits = 3, DepartmentId = 1 };
             _context.Courses.Add(course);
 
-            // Add user (student)
             var student = new User { Id = 1, Email = "student@test.com", FirstName = "Test", LastName = "Student" };
             _context.Users.Add(student);
 
-            // Add instructor (for section)
             var instructor = new User { Id = 2, Email = "instructor@test.com", FirstName = "Test", LastName = "Instructor" };
             _context.Users.Add(instructor);
 
-            // Add classroom (for section)
             var classroom = new Classroom { Id = 1, Building = "A", RoomNumber = "101", Capacity = 30 };
             _context.Classrooms.Add(classroom);
 
-            // Add section
+            // Determine semester
             var currentMonth = DateTime.Now.Month;
             var semester = currentMonth >= 9 || currentMonth <= 1 ? "Fall" : "Spring";
+            if (!isCurrentSemester) semester = semester == "Fall" ? "Spring" : "Fall"; // Flip it
+
             var section = new CourseSection 
             { 
                 Id = 1, 
@@ -81,7 +79,6 @@ namespace SmartCampus.Tests.Services
             };
             _context.CourseSections.Add(section);
 
-            // Add enrollment
             var enrollment = new Enrollment 
             { 
                 Id = 1, 
@@ -95,153 +92,166 @@ namespace SmartCampus.Tests.Services
             await _context.SaveChangesAsync();
         }
 
-        [Fact]
-        public void Constructor_ShouldCreateInstance()
+        private async Task ExecuteCheckAbsenceRatesAsync(AbsenceWarningService service)
         {
-            var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
-            Assert.NotNull(service);
-        }
-
-        [Fact]
-        public void GetCurrentSemester_ShouldReturnFall_InSeptemberToJanuary()
-        {
-            // Test current semester logic
-            var currentMonth = DateTime.Now.Month;
-            var expectedSemester = currentMonth >= 9 || currentMonth <= 1 ? "Fall" : "Spring";
+            var methodInfo = typeof(AbsenceWarningService).GetMethod("CheckAbsenceRatesAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (methodInfo == null) throw new InvalidOperationException("Method CheckAbsenceRatesAsync not found");
             
-            // The service should use the same logic internally
-            Assert.True(expectedSemester == "Fall" || expectedSemester == "Spring");
+            var task = (Task)methodInfo.Invoke(service, null);
+            await task;
         }
 
         [Fact]
-        public async Task Service_ShouldNotSendEmail_WhenNoSessionsExist()
+        public async Task LowAbsence_ShouldNotSendEmail()
         {
             await SetupTestDataAsync();
-            // No attendance sessions added
+            // 10 sessions, 9 attended -> 10% absence (Low)
+            await CreateSessionsAndAttendance(10, 9);
 
             var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
-            
-            // The service checks absence rates, but with no sessions, it should skip
-            // We can't directly call CheckAbsenceRatesAsync (it's private), but we verify via mock
+            await ExecuteCheckAbsenceRatesAsync(service);
+
             _mockEmailService.Verify(x => x.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
-        public async Task Service_ShouldCheckAbsenceRates_WhenSessionsExist()
+        public async Task WarningLevel_ShouldSendWarningEmail()
         {
             await SetupTestDataAsync();
-
-            // Add closed attendance sessions (10 total)
-            for (int i = 1; i <= 10; i++)
-            {
-                var session = new AttendanceSession
-                {
-                    Id = i,
-                    SectionId = 1,
-                    InstructorId = 2,
-                    Date = DateTime.UtcNow.AddDays(-i),
-                    StartTime = TimeSpan.FromHours(9),
-                    EndTime = TimeSpan.FromHours(10),
-                    Status = "Closed",
-                    QrCode = $"qr-{i}"
-                };
-                _context.AttendanceSessions.Add(session);
-            }
-
-            // Student attended 7 out of 10 sessions (30% absence)
-            for (int i = 1; i <= 7; i++)
-            {
-                var record = new AttendanceRecord
-                {
-                    Id = i,
-                    SessionId = i,
-                    StudentId = 1,
-                    IsFlagged = false,
-                    CheckInTime = DateTime.UtcNow.AddDays(-i)
-                };
-                _context.AttendanceRecords.Add(record);
-            }
-
-            await _context.SaveChangesAsync();
+            // 10 sessions, 8 attended -> 20% absence (Warning)
+            await CreateSessionsAndAttendance(10, 8);
 
             var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
-            
-            // Service is a BackgroundService - we verify the data setup is correct
-            var totalSessions = await _context.AttendanceSessions.CountAsync(s => s.SectionId == 1 && s.Status == "Closed");
-            var attendedSessions = await _context.AttendanceRecords.CountAsync(r => r.Session.SectionId == 1 && r.StudentId == 1);
+            await ExecuteCheckAbsenceRatesAsync(service);
 
-            Assert.Equal(10, totalSessions);
-            Assert.Equal(7, attendedSessions);
-            
-            // 30% absence rate (3 missed out of 10)
-            var absenceRate = 100.0 - ((double)attendedSessions / totalSessions * 100);
-            Assert.Equal(30.0, absenceRate);
+            _mockEmailService.Verify(x => x.SendEmailAsync(
+                "student@test.com", 
+                It.Is<string>(s => s.Contains("⚠️ Devamsızlık Uyarısı")), 
+                It.Is<string>(b => b.Contains("%20"))), Times.Once);
         }
 
         [Fact]
-        public async Task AbsenceCalculation_ShouldIncludeExcusedAbsences()
+        public async Task CriticalLevel_ShouldSendCriticalWarningEmail()
         {
             await SetupTestDataAsync();
+            // 10 sessions, 7 attended -> 30% absence (Critical)
+            await CreateSessionsAndAttendance(10, 7);
 
-            // Add 10 closed sessions
-            for (int i = 1; i <= 10; i++)
-            {
-                var session = new AttendanceSession
-                {
-                    Id = i,
-                    SectionId = 1,
-                    InstructorId = 2,
-                    Date = DateTime.UtcNow.AddDays(-i),
-                    StartTime = TimeSpan.FromHours(9),
-                    EndTime = TimeSpan.FromHours(10),
-                    Status = "Closed",
-                    QrCode = $"qr-{i}"
-                };
-                _context.AttendanceSessions.Add(session);
-            }
+            var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
+            await ExecuteCheckAbsenceRatesAsync(service);
 
-            // Student attended 5 sessions
-            for (int i = 1; i <= 5; i++)
-            {
-                var record = new AttendanceRecord
-                {
-                    Id = i,
-                    SessionId = i,
-                    StudentId = 1,
-                    IsFlagged = false,
-                    CheckInTime = DateTime.UtcNow.AddDays(-i)
-                };
-                _context.AttendanceRecords.Add(record);
-            }
+            _mockEmailService.Verify(x => x.SendEmailAsync(
+                "student@test.com", 
+                It.Is<string>(s => s.Contains("🚨 KRİTİK")), 
+                It.Is<string>(b => b.Contains("%30"))), Times.Once);
+        }
 
-            // 3 approved excuse requests
+        [Fact]
+        public async Task ExcusedAbsences_ShouldReduceAbsenceRate()
+        {
+            await SetupTestDataAsync();
+            // 10 sessions, 5 attended, 3 excused -> 8 effective -> 20% absence (Warning)
+            await CreateSessionsAndAttendance(10, 5);
+            
+            // Add 3 excused
             for (int i = 6; i <= 8; i++)
             {
-                var excuse = new ExcuseRequest
-                {
-                    Id = i,
-                    SessionId = i,
-                    StudentId = 1,
-                    Reason = "Medical",
-                    Status = "Approved"
-                };
-                _context.ExcuseRequests.Add(excuse);
+                _context.ExcuseRequests.Add(new ExcuseRequest { 
+                    SessionId = i, StudentId = 1, Status = "Approved", Reason = "Medical" 
+                });
             }
-
             await _context.SaveChangesAsync();
 
-            var totalSessions = await _context.AttendanceSessions.CountAsync(s => s.SectionId == 1);
-            var attended = await _context.AttendanceRecords.CountAsync(r => r.StudentId == 1);
-            var excused = await _context.ExcuseRequests.CountAsync(e => e.StudentId == 1 && e.Status == "Approved");
+            var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
+            await ExecuteCheckAbsenceRatesAsync(service);
 
-            Assert.Equal(10, totalSessions);
-            Assert.Equal(5, attended);
-            Assert.Equal(3, excused);
+            // Should be Warning (20%), NOT Critical (50% raw)
+            _mockEmailService.Verify(x => x.SendEmailAsync(
+                "student@test.com", 
+                It.Is<string>(s => s.Contains("⚠️ Devamsızlık Uyarısı")), // Expect Warning
+                It.IsAny<string>()), Times.Once);
+        }
 
-            // Effective attendance = 5 + 3 = 8 out of 10 = 20% absence
-            var effectiveAttended = attended + excused;
-            var absenceRate = 100.0 - ((double)effectiveAttended / totalSessions * 100);
-            Assert.Equal(20.0, absenceRate);
+        [Fact]
+        public async Task SemesterMismatch_ShouldIgnoreEnrollment()
+        {
+            await SetupTestDataAsync(isCurrentSemester: false);
+            // 10 sessions, 0 attended -> 100% absence (Critical) - BUT wrong semester
+            await CreateSessionsAndAttendance(10, 0);
+
+            var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
+            await ExecuteCheckAbsenceRatesAsync(service);
+
+            _mockEmailService.Verify(x => x.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task EmailFailure_ShouldLogWarning_AndNotThrow()
+        {
+            await SetupTestDataAsync();
+            // 20% absence -> Trigger Warning
+            await CreateSessionsAndAttendance(10, 8);
+
+            _mockEmailService.Setup(x => x.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new Exception("SMTP Error"));
+
+            var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
+            
+            // Should not throw
+            await ExecuteCheckAbsenceRatesAsync(service);
+
+            // Verify logging
+            _mockLogger.Verify(x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Email gönderilemedi")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+        }
+        
+        [Fact]
+        public async Task ExecuteAsync_ShouldRunLoop()
+        {
+             // This tests the BackgroundService loop roughly
+             // We can't easily test the loop without cancellation token tricks or TimeProvider
+             // But we can verify it starts and logs
+             
+             var cts = new CancellationTokenSource();
+             cts.CancelAfter(50); // Cancel almost immediately
+             
+             var service = new AbsenceWarningService(_serviceProvider, _mockLogger.Object);
+             
+             // Just verifying it doesn't crush
+             await service.StartAsync(cts.Token);
+             await service.StopAsync(cts.Token);
+             
+             _mockLogger.Verify(x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Service başlatıldı")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.AtLeastOnce);
+        }
+
+        private async Task CreateSessionsAndAttendance(int totalSessions, int attendedCount)
+        {
+            for (int i = 1; i <= totalSessions; i++)
+            {
+                _context.AttendanceSessions.Add(new AttendanceSession
+                {
+                    Id = i, SectionId = 1, InstructorId = 2, Status = "Closed",
+                    Date = DateTime.UtcNow.AddDays(-i), StartTime = TimeSpan.Zero, EndTime = TimeSpan.Zero, QrCode = "qr"
+                });
+            }
+
+            for (int i = 1; i <= attendedCount; i++)
+            {
+                _context.AttendanceRecords.Add(new AttendanceRecord
+                {
+                    Id = i, SessionId = i, StudentId = 1, IsFlagged = false, CheckInTime = DateTime.UtcNow
+                });
+            }
+            await _context.SaveChangesAsync();
         }
     }
 }

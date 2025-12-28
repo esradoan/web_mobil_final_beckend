@@ -306,5 +306,44 @@ namespace SmartCampus.Tests.Controllers
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
         }
+        [Fact]
+        public async Task CheckIn_DistanceExceeded_ShouldReturnBadRequest()
+        {
+            // Arrange
+            SetupHttpContext("1", "Student");
+            var dto = new CheckInRequestDto { Latitude = 41.0m, Longitude = 29.0m };
+            var checkInResult = new CheckInResponseDto { 
+                IsFlagged = true, 
+                FlagReason = "Distance exceeded",
+                Distance = 500
+            };
+            
+            _mockAttendanceService.Setup(x => x.CheckInAsync(1, 1, It.IsAny<CheckInRequestDto>(), It.IsAny<string>()))
+                .ReturnsAsync(checkInResult);
+
+            // Act
+            var result = await _controller.CheckIn(1, dto);
+
+            // Assert
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            // Verify specific error object structure if needed, or just type
+            Assert.NotNull(badRequest.Value);
+        }
+
+        [Fact]
+        public async Task GetAttendanceReport_ServiceException_ShouldReturnNotFound()
+        {
+            // Arrange
+            SetupHttpContext("1", "Faculty");
+            _mockAttendanceService.Setup(x => x.GetAttendanceReportAsync(1)).ThrowsAsync(new Exception("DB Error"));
+
+            // Act
+            var result = await _controller.GetAttendanceReport(1);
+
+            // Assert
+            // Controller catches Exception and returns NotFound
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            Assert.NotNull(notFound.Value);
+        }
     }
 }
