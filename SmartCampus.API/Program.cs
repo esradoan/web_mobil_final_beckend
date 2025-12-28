@@ -17,7 +17,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.FileProviders; // Static files için
 using System.Collections.Generic;
-using SmartCampus.API.Helpers; // Added for manual migration helper
+using SmartCampus.API.Helpers; // Added for manual migration helper and TimeSpanConverter
 using SmartCampus.API.Services; // Added for Hub Services
 using QuestPDF.Infrastructure; // For PDF Export
 
@@ -35,6 +35,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.WriteIndented = true; // For debugging
         // Convert enums to strings instead of numbers
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // Add TimeSpan converter to handle "HH:mm:ss" format from frontend
+        options.JsonSerializerOptions.Converters.Add(new TimeSpanConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
 
