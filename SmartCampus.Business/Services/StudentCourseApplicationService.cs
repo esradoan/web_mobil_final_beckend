@@ -365,6 +365,7 @@ namespace SmartCampus.Business.Services
                 .FirstOrDefaultAsync(s => s.Id == application.SectionId);
 
             // Student bilgilerini yükle (Student entity'den StudentNumber almak için)
+            // Student bilgilerini yükle (Student entity'den StudentNumber almak için)
             var student = await _context.Students
                 .Include(s => s.User)
                 .FirstOrDefaultAsync(s => s.UserId == application.StudentId);

@@ -263,5 +263,48 @@ namespace SmartCampus.Tests.Controllers
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
         }
+        // QR Code Tests
+        [Fact]
+        public async Task GetQrCode_ReturnsOk_WhenSuccessful()
+        {
+            SetupHttpContext("1", "Faculty");
+            var qrCodeDto = new QrCodeImageDto { ImageBase64 = "base64image" };
+            _mockQrCodeService.Setup(x => x.GenerateQrCodeImageAsync(1)).ReturnsAsync(qrCodeDto);
+
+            var result = await _controller.GetQrCode(1);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(qrCodeDto, okResult.Value);
+        }
+
+        [Fact]
+        public async Task RefreshQrCode_ReturnsOk_WhenSuccessful()
+        {
+            SetupHttpContext("1", "Faculty");
+            var qrCodeDto = new QrCodeImageDto { ImageBase64 = "newbase64image" };
+            _mockQrCodeService.Setup(x => x.RefreshQrCodeAsync(1, 1)).ReturnsAsync("new-code-string");
+            _mockQrCodeService.Setup(x => x.GenerateQrCodeImageAsync(1)).ReturnsAsync(qrCodeDto);
+
+            var result = await _controller.RefreshQrCode(1);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(qrCodeDto, okResult.Value);
+        }
+
+        [Fact]
+        public async Task CheckInWithQr_ReturnsOk_WhenSuccessful()
+        {
+            SetupHttpContext("1", "Student");
+            var dto = new QrCheckInRequestDto { QrCode = "valid-qr", Latitude = 41.0m, Longitude = 29.0m };
+            var response = new QrCheckInResponseDto { Message = "Success", Success = true };
+            
+            _mockQrCodeService.Setup(x => x.CheckInWithQrAsync(1, 1, It.IsAny<QrCheckInRequestDto>(), It.IsAny<string>()))
+                .ReturnsAsync(response);
+
+            var result = await _controller.CheckInWithQr(1, dto);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+        }
     }
 }

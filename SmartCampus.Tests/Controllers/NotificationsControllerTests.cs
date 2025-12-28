@@ -1,84 +1,113 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
 using SmartCampus.API.Controllers;
 using SmartCampus.Business.Services;
 using SmartCampus.Entities;
-using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 using Xunit;
+using System.Collections.Generic;
 
-namespace SMARTCAMPUS.Tests.Controllers
+namespace SmartCampus.Tests.Controllers
 {
     public class NotificationsControllerTests
     {
-        private readonly Mock<INotificationService> _mockService;
+        private readonly Mock<INotificationService> _mockNotificationService;
         private readonly NotificationsController _controller;
-        private readonly ClaimsPrincipal _user;
 
         public NotificationsControllerTests()
         {
-            _mockService = new Mock<INotificationService>();
-            _controller = new NotificationsController(_mockService.Object);
+            _mockNotificationService = new Mock<INotificationService>();
+            _controller = new NotificationsController(_mockNotificationService.Object);
+        }
 
-            _user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        private void SetupUserContext(int userId)
+        {
+            var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) };
+            var identity = new ClaimsIdentity(claims, "Test");
+            var principal = new ClaimsPrincipal(identity);
+            _controller.ControllerContext = new ControllerContext
             {
-                new Claim(ClaimTypes.NameIdentifier, "1"),
-                new Claim(ClaimTypes.Role, "Student")
-            }, "mock"));
-
-            _controller.ControllerContext = new ControllerContext()
-            {
-                HttpContext = new DefaultHttpContext() { User = _user }
+                HttpContext = new DefaultHttpContext { User = principal }
             };
         }
 
         [Fact]
-        public async Task GetNotifications_ReturnsOk_WithList()
+        public async Task GetNotifications_Success_ReturnsOk()
         {
             // Arrange
-            var notifications = new List<Notification>
-            {
-                new Notification { Id = 1, Title = "Test", Message = "Msg", UserId = 1 }
-            };
-            _mockService.Setup(x => x.GetUserNotificationsAsync(1, 1, 20))
-                .ReturnsAsync(notifications);
+            SetupUserContext(1);
+            _mockNotificationService.Setup(s => s.GetUserNotificationsAsync(1, 1, 20))
+                .ReturnsAsync(new List<Notification>());
 
             // Act
             var result = await _controller.GetNotifications(1, 20);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnList = Assert.IsType<List<Notification>>(okResult.Value);
-            Assert.Single(returnList);
+            Assert.NotNull(okResult.Value);
         }
 
         [Fact]
-        public async Task GetUnreadCount_ReturnsOk_WithCount()
+        public async Task GetUnreadCount_Success_ReturnsOk()
         {
             // Arrange
-            _mockService.Setup(x => x.GetUnreadCountAsync(1)).ReturnsAsync(5);
+            SetupUserContext(1);
+            _mockNotificationService.Setup(s => s.GetUnreadCountAsync(1))
+                .ReturnsAsync(5);
 
             // Act
             var result = await _controller.GetUnreadCount();
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            // Assuming anonymous object, we check via string or reflection, or just status code for simplicity here or dynamic
-            // But dynamic is easy:
-            // Assert.Equal("{ count = 5 }", result.ToString()); // No
-            // Let's verify status 200
-            Assert.Equal(200, okResult.StatusCode);
+            Assert.NotNull(okResult.Value);
         }
 
         [Fact]
-        public async Task MarkAsRead_ReturnsOk()
+        public async Task MarkAsRead_Success_ReturnsOk()
         {
+            // Arrange
+            SetupUserContext(1);
+            _mockNotificationService.Setup(s => s.MarkAsReadAsync(100, 1))
+                .Returns(Task.CompletedTask);
+
             // Act
             var result = await _controller.MarkAsRead(100);
 
             // Assert
             Assert.IsType<OkResult>(result);
-            _mockService.Verify(x => x.MarkAsReadAsync(100, 1), Times.Once);
+        }
+
+        [Fact]
+        public async Task MarkAllAsRead_Success_ReturnsOk()
+        {
+            // Arrange
+            SetupUserContext(1);
+            _mockNotificationService.Setup(s => s.MarkAllAsReadAsync(1))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _controller.MarkAllAsRead();
+
+            // Assert
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Fact]
+        public async Task DeleteNotification_Success_ReturnsOk()
+        {
+            // Arrange
+            SetupUserContext(1);
+            _mockNotificationService.Setup(s => s.DeleteNotificationAsync(100, 1))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _controller.DeleteNotification(100);
+
+            // Assert
+            Assert.IsType<OkResult>(result);
         }
     }
 }

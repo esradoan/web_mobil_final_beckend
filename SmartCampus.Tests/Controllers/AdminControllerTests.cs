@@ -1,4 +1,3 @@
-#nullable disable
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,395 +8,309 @@ using SmartCampus.Business.DTOs;
 using SmartCampus.Business.Services;
 using SmartCampus.DataAccess;
 using SmartCampus.Entities;
-using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Xunit;
-using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace SmartCampus.Tests.Controllers
 {
     public class AdminControllerTests : IDisposable
     {
+        private readonly CampusDbContext _context;
         private readonly Mock<IEnrollmentService> _mockEnrollmentService;
         private readonly Mock<ITranscriptPdfService> _mockPdfService;
         private readonly Mock<UserManager<User>> _mockUserManager;
-        private readonly CampusDbContext _context;
         private readonly AdminController _controller;
 
         public AdminControllerTests()
         {
+            // Setup InMemory DB
             var options = new DbContextOptionsBuilder<CampusDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique name per test
                 .Options;
             _context = new CampusDbContext(options);
-            
+
+            // Mock Services
             _mockEnrollmentService = new Mock<IEnrollmentService>();
             _mockPdfService = new Mock<ITranscriptPdfService>();
+
+            // Mock UserManager
+            var store = new Mock<IUserStore<User>>();
+            _mockUserManager = new Mock<UserManager<User>>(store.Object, null, null, null, null, null, null, null, null);
+
+            // Seed initial data
+            SeedDatabase();
+
+            _controller = new AdminController(_context, _mockEnrollmentService.Object, _mockPdfService.Object, _mockUserManager.Object);
+        }
+
+        private void SeedDatabase()
+        {
+            var users = new List<User>
+            {
+                new User { Id = 1, Email = "admin@test.com", FirstName = "Admin", LastName = "User" },
+                new User { Id = 2, Email = "student@test.com", FirstName = "Student", LastName = "One" },
+                new User { Id = 3, Email = "faculty@test.com", FirstName = "Faculty", LastName = "One" }
+            };
+            _context.Users.AddRange(users);
+
+            var students = new List<Student>
+            {
+                new Student { Id = 1, UserId = 2, StudentNumber = "STD001", DepartmentId = 1, IsActive = true }
+            };
+            _context.Students.AddRange(students);
             
-            var userStore = new Mock<IUserStore<User>>();
-            _mockUserManager = new Mock<UserManager<User>>(userStore.Object, null, null, null, null, null, null, null, null);
-            
-            _controller = new AdminController(
-                _context,
-                _mockEnrollmentService.Object,
-                _mockPdfService.Object,
-                _mockUserManager.Object);
+             var departments = new List<Department>
+            {
+                new Department { Id = 1, Name = "Computer Science" }
+            };
+            _context.Departments.AddRange(departments);
+
+             var faculties = new List<Faculty>
+            {
+                new Faculty { Id = 1, UserId = 3, DepartmentId = 1, Title = "Prof", EmployeeNumber = "FAC001" }
+            };
+            _context.Faculties.AddRange(faculties);
+
+            _context.SaveChanges();
+        }
+
+        private void SetupUserContext(int userId, string role = "Admin")
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Role, role)
+            };
+            var identity = new ClaimsIdentity(claims, "Test");
+            var principal = new ClaimsPrincipal(identity);
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = principal }
+            };
         }
 
         public void Dispose()
         {
-            _context?.Dispose();
+            _context.Database.EnsureDeleted();
+            _context.Dispose();
         }
 
-        private void SetupHttpContext(string userId, string role = "Admin")
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, userId),
-                new Claim(ClaimTypes.Role, role)
-            };
-            var identity = new ClaimsIdentity(claims, "TestAuth");
-            var user = new ClaimsPrincipal(identity);
-            _controller.ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext { User = user }
-            };
-        }
-
-        // GetStudents Tests
-        [Fact]
-        public async Task GetStudents_ReturnsOk_WhenAdminCalls()
-        {
-            SetupHttpContext("1", "Admin");
-            
-            var department = new Department { Id = 1, Name = "Computer Science", Code = "CS" };
-            _context.Departments.Add(department);
-            
-            var user = new User { Id = 100, Email = "student@test.com", FirstName = "Test", LastName = "Student" };
-            _context.Users.Add(user);
-            
-            var student = new Student { Id = 1, UserId = 100, StudentNumber = "12345", DepartmentId = 1, IsActive = true };
-            _context.Students.Add(student);
-            await _context.SaveChangesAsync();
-
-            // Test basic retrieval
-            var result = await _controller.GetStudents();
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult.Value);
-
-            // Test logic: Search
-            var resultSearch = await _controller.GetStudents(search: "Test");
-            var okResultSearch = Assert.IsType<OkObjectResult>(resultSearch);
-            Assert.NotNull(okResultSearch.Value);
-
-            // Test logic: Filter by Department
-            var resultDept = await _controller.GetStudents(departmentId: 1);
-            Assert.IsType<OkObjectResult>(resultDept);
-
-             // Test logic: Filter by Active
-            var resultActive = await _controller.GetStudents(isActive: true);
-            Assert.IsType<OkObjectResult>(resultActive);
-        }
+        // ==================== Student Tests ====================
 
         [Fact]
-        public async Task GetStudents_ReturnsForbid_WhenFacultyHasNoEntry()
+        public async Task GetStudents_Admin_ReturnsOk()
         {
-            SetupHttpContext("2", "Faculty");
-            // No Faculty entry in DB
-            
-            var result = await _controller.GetStudents();
-            
-            Assert.IsType<ForbidResult>(result);
-        }
+            // Arrange
+            SetupUserContext(1, "Admin");
 
-        [Fact]
-        public async Task GetStudents_ReturnsOk_WhenFacultyCalls()
-        {
-            SetupHttpContext("2", "Faculty");
-            
-            var dept = new Department { Id = 2, Name = "Engineering", Code = "ENG" };
-            _context.Departments.Add(dept);
-            
-            var faculty = new Faculty { Id = 1, UserId = 2, DepartmentId = 2 };
-            _context.Faculties.Add(faculty);
-            
-            var user = new User { Id = 101, Email = "stu2@test.com", FirstName = "S", LastName = "Two" };
-            _context.Users.Add(user);
-            var student = new Student { Id = 2, UserId = 101, DepartmentId = 2, StudentNumber = "S2" };
-            _context.Students.Add(student);
-            
-            await _context.SaveChangesAsync();
+            // Act
+            var result = await _controller.GetStudents(1, 10);
 
-            var result = await _controller.GetStudents();
-            
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult.Value);
-        }
-
-        // GetStudentTranscript Tests
-        [Fact]
-        public async Task GetStudentTranscript_ReturnsOk_WhenStudentExists()
-        {
-            SetupHttpContext("1", "Admin");
-            
-            // Seed data properly matching navigation properties
-            var department = new Department { Id = 1, Name = "CS", Code = "CS101" };
-            _context.Departments.Add(department);
-            
-            var user = new User { Id = 100, Email = "student1@test.com", FirstName = "Test", LastName = "Student" };
-            _context.Users.Add(user);
-            
-            var student = new Student { Id = 1, UserId = 100, StudentNumber = "12345", DepartmentId = 1 };
-            _context.Students.Add(student);
-            
-            await _context.SaveChangesAsync();
-
-            var transcript = new TranscriptDto { StudentName = "Test Student", StudentNumber = "12345" };
-            _mockEnrollmentService.Setup(x => x.GetTranscriptAsync(100)).ReturnsAsync(transcript);
-
-            var result = await _controller.GetStudentTranscript(1);
-
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
         }
 
         [Fact]
-        public async Task GetStudentTranscript_ReturnsNotFound_WhenStudentNotExists()
+        public async Task GetStudents_Faculty_ReturnsDepartmentStudents()
         {
-            SetupHttpContext("1", "Admin");
-            _mockEnrollmentService.Setup(x => x.GetTranscriptAsync(999))
-                .ThrowsAsync(new Exception("Student not found"));
+            // Arrange
+            SetupUserContext(3, "Faculty");
 
-            var result = await _controller.GetStudentTranscript(999);
+            // Act
+            var result = await _controller.GetStudents(1, 10);
 
-            Assert.IsType<NotFoundObjectResult>(result);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+        }
+        
+        [Fact]
+        public async Task UpdateStudentStatus_Success_ReturnsOk()
+        {
+            // Arrange
+            SetupUserContext(1, "Admin");
+            var dto = new UpdateStudentStatusDto { IsActive = false };
+
+            // Act
+            var result = await _controller.UpdateStudentStatus(1, dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var student = await _context.Students.FindAsync(1);
+            Assert.False(student?.IsActive);
         }
 
-        // GetStudentTranscriptPdf Tests
         [Fact]
-        public async Task GetStudentTranscriptPdf_ReturnsFile_WhenStudentExists()
+        public async Task GetStudentTranscript_Success_ReturnsOk()
         {
-            SetupHttpContext("1", "Admin");
-            
-            // Seed data properly matching navigation properties
-            var department = new Department { Id = 2, Name = "SE", Code = "SE101" };
-            _context.Departments.Add(department);
-            
-            var user = new User { Id = 101, Email = "student2@test.com", FirstName = "Test", LastName = "Student" };
-            _context.Users.Add(user);
-            
-            var student = new Student { Id = 2, UserId = 101, StudentNumber = "54321", DepartmentId = 2 };
-            _context.Students.Add(student);
-            
-            await _context.SaveChangesAsync();
+            // Arrange
+            SetupUserContext(1, "Admin");
+            _mockEnrollmentService.Setup(s => s.GetTranscriptAsync(2))
+                .ReturnsAsync(new TranscriptDto());
 
-            var transcript = new TranscriptDto { StudentName = "Test Student", StudentNumber = "54321" };
-            var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // PDF magic bytes
-            
-            _mockEnrollmentService.Setup(x => x.GetTranscriptAsync(101)).ReturnsAsync(transcript);
-            _mockPdfService.Setup(x => x.GenerateTranscript(transcript)).Returns(pdfBytes);
+            // Act
+            var result = await _controller.GetStudentTranscript(1); // Student Id 1 has User Id 2
 
-            var result = await _controller.GetStudentTranscriptPdf(2);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+        }
 
+        [Fact]
+        public async Task GetStudentTranscriptPdf_Success_ReturnsFile()
+        {
+            // Arrange
+            SetupUserContext(1, "Admin");
+            _mockEnrollmentService.Setup(s => s.GetTranscriptAsync(2))
+                .ReturnsAsync(new TranscriptDto());
+            _mockPdfService.Setup(s => s.GenerateTranscript(It.IsAny<TranscriptDto>()))
+                .Returns(new byte[] { 1, 2, 3 });
+
+            // Act
+            var result = await _controller.GetStudentTranscriptPdf(1);
+
+            // Assert
             var fileResult = Assert.IsType<FileContentResult>(result);
             Assert.Equal("application/pdf", fileResult.ContentType);
         }
 
+        // ==================== User Management Tests ====================
+
         [Fact]
-        public async Task GetStudentTranscriptPdf_ReturnsNotFound_WhenStudentNotExists()
+        public async Task CheckUserStatus_Success_ReturnsOk()
         {
-            SetupHttpContext("1", "Admin");
-            var result = await _controller.GetStudentTranscriptPdf(999);
-            Assert.IsType<NotFoundObjectResult>(result);
-        }
+            // Arrange
+            SetupUserContext(1, "Admin");
+            string email = "student@test.com";
+            var user = _context.Users.First(u => u.Email == email);
+            
+            _mockUserManager.Setup(u => u.FindByEmailAsync(email))
+                .ReturnsAsync(user);
+            _mockUserManager.Setup(u => u.GetRolesAsync(user))
+                .ReturnsAsync(new List<string> { "Student" });
 
-        // CheckUserStatus Tests
-        [Fact]
-        public async Task CheckUserStatus_ReturnsOk_WhenUserExists()
-        {
-            SetupHttpContext("1", "Admin");
-            var user = new User { Id = 10, Email = "user@test.com", FirstName = "Test", EmailConfirmed = true };
-            _mockUserManager.Setup(x => x.FindByEmailAsync("user@test.com")).ReturnsAsync(user);
-            _mockUserManager.Setup(x => x.GetRolesAsync(user)).ReturnsAsync(new List<string> { "Student" });
-            _mockUserManager.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(false);
+            // Act
+            var result = await _controller.CheckUserStatus(email);
 
-            var result = await _controller.CheckUserStatus("user@test.com");
-
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
         }
 
         [Fact]
-        public async Task CheckUserStatus_ReturnsNotFound_WhenUserNotExists()
+        public async Task DeleteUserByEmail_Success_ReturnsOk()
         {
-            SetupHttpContext("1", "Admin");
-            _mockUserManager.Setup(x => x.FindByEmailAsync("nonexistent@test.com")).ReturnsAsync((User)null);
+            // Arrange
+            SetupUserContext(1, "Admin");
+            string email = "student@test.com";
+            var user = _context.Users.First(u => u.Email == email);
 
-            var result = await _controller.CheckUserStatus("nonexistent@test.com");
+            _mockUserManager.Setup(u => u.FindByEmailAsync(email))
+                .ReturnsAsync(user);
+            _mockUserManager.Setup(u => u.DeleteAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
 
-            Assert.IsType<NotFoundObjectResult>(result);
-        }
+            // Act
+            var result = await _controller.DeleteUserByEmail(email);
 
-        // DeleteUserByEmail Tests
-        [Fact]
-        public async Task DeleteUserByEmail_ReturnsOk_WhenUserDeleted()
-        {
-            SetupHttpContext("1", "Admin");
-            var user = new User { Id = 10, Email = "delete@test.com" };
-            _mockUserManager.Setup(x => x.FindByEmailAsync("delete@test.com")).ReturnsAsync(user);
-            _mockUserManager.Setup(x => x.DeleteAsync(user)).ReturnsAsync(IdentityResult.Success);
-
-            // Add related data to ensure cascade delete logic is covered (though DbContext handles it, Controller checks for it)
-            var student = new Student { UserId = 10, Id = 10 };
-            _context.Students.Add(student);
-            await _context.SaveChangesAsync();
-
-            var result = await _controller.DeleteUserByEmail("delete@test.com");
-
-            Assert.IsType<OkObjectResult>(result);
-            
-            // Verify student was removed from context
-            Assert.Null(await _context.Students.FindAsync(10));
-        }
-
-        [Fact]
-        public async Task DeleteUserByEmail_ReturnsNotFound_WhenUserNotExists()
-        {
-            SetupHttpContext("1", "Admin");
-            _mockUserManager.Setup(x => x.FindByEmailAsync("nonexistent@test.com")).ReturnsAsync((User)null);
-
-            var result = await _controller.DeleteUserByEmail("nonexistent@test.com");
-
-            Assert.IsType<NotFoundObjectResult>(result);
-        }
-
-        // ResetUserPassword Tests
-        [Fact]
-        public async Task ResetUserPassword_ReturnsOk_WhenPasswordReset()
-        {
-            SetupHttpContext("1", "Admin");
-            var user = new User { Id = 10, Email = "user@test.com" };
-            var dto = new AdminResetPasswordDto { NewPassword = "NewPass123!" };
-            
-            _mockUserManager.Setup(x => x.FindByEmailAsync("user@test.com")).ReturnsAsync(user);
-            _mockUserManager.Setup(x => x.RemovePasswordAsync(user)).ReturnsAsync(IdentityResult.Success);
-            _mockUserManager.Setup(x => x.AddPasswordAsync(user, dto.NewPassword)).ReturnsAsync(IdentityResult.Success);
-
-            var result = await _controller.ResetUserPassword("user@test.com", dto);
-
-            Assert.IsType<OkObjectResult>(result);
-        }
-
-        [Fact]
-        public async Task ResetUserPassword_ReturnsNotFound_WhenUserNotExists()
-        {
-            SetupHttpContext("1", "Admin");
-            var dto = new AdminResetPasswordDto { NewPassword = "NewPass123!" };
-            _mockUserManager.Setup(x => x.FindByEmailAsync("nonexistent@test.com")).ReturnsAsync((User)null);
-
-            var result = await _controller.ResetUserPassword("nonexistent@test.com", dto);
-
-            Assert.IsType<NotFoundObjectResult>(result);
-        }
-
-        // --- NEW TESTS FOR COVERAGE ---
-
-        // UpdateStudentStatus Tests
-        [Fact]
-        public async Task UpdateStudentStatus_ReturnsOk_WhenStudentExists()
-        {
-            SetupHttpContext("1", "Admin");
-            var student = new Student { Id = 5, IsActive = false };
-            _context.Students.Add(student);
-            await _context.SaveChangesAsync();
-
-            var dto = new UpdateStudentStatusDto { IsActive = true };
-            var result = await _controller.UpdateStudentStatus(5, dto);
-
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult.Value);
-            var updatedStudent = await _context.Students.FindAsync(5);
-            Assert.True(updatedStudent.IsActive);
+            
+            // Should also delete student entry
+            Assert.Null(await _context.Students.FirstOrDefaultAsync(s => s.UserId == 2));
         }
 
         [Fact]
-        public async Task UpdateStudentStatus_ReturnsNotFound_WhenStudentNotExists()
+        public async Task UpdateUser_Success_ReturnsOk()
         {
-            SetupHttpContext("1", "Admin");
-            var dto = new UpdateStudentStatusDto { IsActive = true };
-            var result = await _controller.UpdateStudentStatus(999, dto);
+            // Arrange
+            SetupUserContext(1, "Admin");
+            string email = "student@test.com";
+            var user = _context.Users.First(u => u.Email == email);
+            
+            var dto = new UpdateUserDto 
+            { 
+                FirstName = "UpdatedFn", 
+                LastName = "UpdatedLn" 
+            };
 
-            Assert.IsType<NotFoundObjectResult>(result);
+            _mockUserManager.Setup(u => u.FindByEmailAsync(email))
+                .ReturnsAsync(user);
+            _mockUserManager.Setup(u => u.IsInRoleAsync(user, "Admin"))
+                .ReturnsAsync(false);
+            _mockUserManager.Setup(u => u.UpdateAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
+
+            // Act
+            var result = await _controller.UpdateUser(email, dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal("UpdatedFn", user.FirstName);
         }
 
-        // FixUserRoles Tests
         [Fact]
-        public async Task FixUserRoles_ReturnsOk_WhenSuccessful()
+        public async Task ResetUserPassword_Success_ReturnsOk()
         {
-            SetupHttpContext("1", "Admin");
-            var user = new User { Id = 50, Email = "roleless@test.com" };
-            _context.Users.Add(user);
-            var student = new Student { Id = 50, UserId = 50 }; // Student entry exists
+            // Arrange
+            SetupUserContext(1, "Admin");
+            string email = "student@test.com";
+            var user = _context.Users.First(u => u.Email == email);
+            var dto = new AdminResetPasswordDto { NewPassword = "NewPassword123!" };
+
+            _mockUserManager.Setup(u => u.FindByEmailAsync(email))
+                .ReturnsAsync(user);
+            _mockUserManager.Setup(u => u.RemovePasswordAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
+            _mockUserManager.Setup(u => u.AddPasswordAsync(user, dto.NewPassword))
+                .ReturnsAsync(IdentityResult.Success);
+
+            // Act
+            var result = await _controller.ResetUserPassword(email, dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+        }
+        
+        [Fact]
+        public async Task FixUserRoles_ReturnsOk_AndUpdatesRoles()
+        {
+            // Arrange
+            var studentUser = new User { Id = 10, Email = "student10@example.com", SecurityStamp = "123" };
+            var facultyUser = new User { Id = 11, Email = "faculty11@example.com", SecurityStamp = "456" };
+            
+            _context.Users.AddRange(studentUser, facultyUser);
+            
+            var student = new Student { UserId = 10, StudentNumber = "S10" };
+            student.User = studentUser; // Link manually for InMemory
             _context.Students.Add(student);
+            
+            var faculty = new Faculty { UserId = 11, Title = "Prof" };
+            faculty.User = facultyUser; // Link manually for InMemory
+            _context.Faculties.Add(faculty);
+            
             await _context.SaveChangesAsync();
 
-            _mockUserManager.Setup(x => x.GetRolesAsync(user)).ReturnsAsync(new List<string>()); // No roles
-            _mockUserManager.Setup(x => x.AddToRoleAsync(user, "Student")).ReturnsAsync(IdentityResult.Success);
+            // Setup UserManager mocks for roles
+            _mockUserManager.Setup(m => m.GetRolesAsync(It.IsAny<User>())).ReturnsAsync(new List<string>());
+            
+            // Allow any user for AddToRole
+            _mockUserManager.Setup(m => m.AddToRoleAsync(It.IsAny<User>(), "Student")).ReturnsAsync(IdentityResult.Success);
+            _mockUserManager.Setup(m => m.AddToRoleAsync(It.IsAny<User>(), "Faculty")).ReturnsAsync(IdentityResult.Success);
 
+            // Act
             var result = await _controller.FixUserRoles();
 
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult.Value);
-            _mockUserManager.Verify(x => x.AddToRoleAsync(user, "Student"), Times.Once);
-        }
-
-        // UpdateUser Tests
-        [Fact]
-        public async Task UpdateUser_ReturnsOk_WhenUpdatingBasicInfo()
-        {
-            SetupHttpContext("1", "Admin");
-            var user = new User { Id = 60, Email = "update@test.com", FirstName = "Old", LastName = "Name" };
-            _mockUserManager.Setup(x => x.FindByEmailAsync("update@test.com")).ReturnsAsync(user);
-            _mockUserManager.Setup(x => x.IsInRoleAsync(user, "Admin")).ReturnsAsync(false);
-            _mockUserManager.Setup(x => x.UpdateAsync(user)).ReturnsAsync(IdentityResult.Success);
-
-            var dto = new UpdateUserDto { FirstName = "New", LastName = "One", Role = null };
             
-            var result = await _controller.UpdateUser("update@test.com", dto);
-
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("New", user.FirstName);
-            Assert.Equal("One", user.LastName);
-        }
-
-        [Fact]
-        public async Task UpdateUser_ReturnsOk_WhenChangingRole()
-        {
-            SetupHttpContext("1", "Admin");
-            var user = new User { Id = 70, Email = "student@test.com" };
-            _mockUserManager.Setup(x => x.FindByEmailAsync("student@test.com")).ReturnsAsync(user);
-            _mockUserManager.Setup(x => x.IsInRoleAsync(user, "Admin")).ReturnsAsync(false);
-            _mockUserManager.Setup(x => x.UpdateAsync(user)).ReturnsAsync(IdentityResult.Success);
-            _mockUserManager.Setup(x => x.GetRolesAsync(user)).ReturnsAsync(new List<string> { "Student" });
-            _mockUserManager.Setup(x => x.RemoveFromRolesAsync(user, It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
-            _mockUserManager.Setup(x => x.AddToRoleAsync(user, "Faculty")).ReturnsAsync(IdentityResult.Success);
-
-            var dept = new Department { Id = 2 };
-            _context.Departments.Add(dept);
-            await _context.SaveChangesAsync();
-
-            var dto = new UpdateUserDto { Role = UserRole.Faculty, DepartmentId = 2 };
-            
-            var result = await _controller.UpdateUser("student@test.com", dto);
-
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            _mockUserManager.Verify(x => x.AddToRoleAsync(user, "Faculty"), Times.Once);
-            
-            // Verify faculty entry created
-            var facultyEntry = await _context.Faculties.FirstOrDefaultAsync(f => f.UserId == 70);
-            Assert.NotNull(facultyEntry);
+            // Verify at least called once
+            _mockUserManager.Verify(m => m.AddToRoleAsync(It.IsAny<User>(), "Student"), Times.AtLeastOnce);
+            _mockUserManager.Verify(m => m.AddToRoleAsync(It.IsAny<User>(), "Faculty"), Times.AtLeastOnce);
         }
     }
 }

@@ -182,5 +182,29 @@ namespace SmartCampus.Tests.Controllers
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
         }
+        // ResendVerificationEmail Tests
+        [Fact]
+        public async Task ResendVerificationEmail_ReturnsOk_WhenSuccessful()
+        {
+            var dto = new ResendVerificationEmailDto { Email = "test@example.com" };
+            _mockAuthService.Setup(x => x.ResendVerificationEmailAsync(dto.Email)).Returns(Task.CompletedTask);
+
+            var result = await _controller.ResendVerificationEmail(dto);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+        }
+
+        [Fact]
+        public async Task ResendVerificationEmail_ReturnsBadRequest_OnFailure()
+        {
+            var dto = new ResendVerificationEmailDto { Email = "test@example.com" };
+            _mockAuthService.Setup(x => x.ResendVerificationEmailAsync(dto.Email))
+                .ThrowsAsync(new System.Exception("Error sending email"));
+
+            var result = await _controller.ResendVerificationEmail(dto);
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
     }
 }
